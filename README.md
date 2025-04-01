@@ -1,1 +1,1 @@
-# zadanie-praktyki2
+# Co nie pasuje? - trening logicznego myślenia dla dzieci
