@@ -260,19 +260,23 @@ class _GamePageState extends State<GamePage> {
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 20),
-            // Dla każdej opcji tworzymy przycisk z obrazkiem i tekstem.
-            ...List.generate(
-              options.length,
-              (index) {
-                // Pobieramy ścieżkę do obrazka – jeśli nie ma, używamy placeholdera
-                String imagePath = optionImages[options[index]] ??
-                    'assets/images/placeholder.png';
-                return OptionButton(
-                  optionText: options[index],
-                  imageAsset: imagePath,
-                  onPressed: () => _checkAnswer(index),
-                );
-              },
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 20,
+              runSpacing: 10,
+              children: List.generate(
+                options.length,
+                (index) {
+                  // Pobieramy ścieżkę do obrazka – jeśli nie ma, używamy placeholdera
+                  String imagePath = optionImages[options[index]] ??
+                      'assets/images/placeholder.png';
+                  return OptionButton(
+                    optionText: options[index],
+                    imageAsset: imagePath,
+                    onPressed: () => _checkAnswer(index),
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -292,22 +296,26 @@ class OptionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 120,
+        height: 160,
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: EdgeInsets.all(10),
           ),
-          padding: EdgeInsets.all(10),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Wyświetlamy obrazek – ustawiamy rozmiar wg potrzeb
-            Image.asset(imageAsset, height: 80, fit: BoxFit.contain),
-            SizedBox(height: 8),
-            Text(optionText, textAlign: TextAlign.center),
-          ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Wyświetlamy obrazek – ustawiamy rozmiar wg potrzeb
+              Image.asset(imageAsset, height: 100, fit: BoxFit.contain),
+              SizedBox(height: 10),
+              Text(optionText, textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
+            ],
+          ),
         ),
       ),
     );
