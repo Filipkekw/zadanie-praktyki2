@@ -62,10 +62,7 @@ class HomePage extends StatelessWidget {
               // Przyciski wyboru trybu gry
               ElevatedButton(
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => GamePage()),
-                  );
+                  Navigator.of(context).push(_createRoute());
                 },
                 
                 child: Text('Tryb Klasyczny'),
@@ -86,6 +83,27 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+}
+Route _createRoute() {
+  return PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) => GamePage(),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      const begin = Offset(0.0, 1.0); // Start na dole ekranu
+      const end = Offset.zero;
+      const curve = Curves.easeInOut;
+
+      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+      var fadeTween = Tween<double>(begin: 0.0, end: 1.0);
+
+      return FadeTransition(
+        opacity: animation.drive(fadeTween),
+        child: SlideTransition(
+          position: animation.drive(tween),
+          child: child,
+        ),
+      );
+    },
+  );
 }
 
 class GamePage extends StatefulWidget {
@@ -299,7 +317,15 @@ class _GamePageState extends State<GamePage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: Stack(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.orange.shade200, Colors.red.shade400],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      child: Stack(
         children: [
           Center(
             child: Column(
@@ -373,6 +399,7 @@ class _GamePageState extends State<GamePage> {
           ),
         ],
       ),
+      )
     );
   }
 }
