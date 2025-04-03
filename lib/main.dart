@@ -63,6 +63,11 @@ class GamePage extends StatefulWidget {
 }
 
 class _GamePageState extends State<GamePage> {
+  bool showFeedback = false;
+  String feedbackMessage = '';
+  Color feedbackColor = Colors.green;
+  IconData feedbackIcon = Icons.check; // Ikona domyślna dla poprawnej odpowiedzi
+
   final Random _random = Random();
 
   // Mapowanie kategorii z 10 elementami każda
@@ -227,22 +232,31 @@ class _GamePageState extends State<GamePage> {
     correctIndex = options.indexOf(selectedNonMatching);
   }
 
-  void _checkAnswer(int index) {
-    bool isCorrect = index == correctIndex;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(isCorrect ? 'Dobrze! 🎉' : 'Źle! Spróbuj ponownie.'),
-        backgroundColor: isCorrect ? Colors.green : Colors.red,
-      ),
-    );
-    if (isCorrect) {
-      Future.delayed(Duration(seconds: 1), () {
+    void _checkAnswer(int index) {
+      bool isCorrect = index == correctIndex;
+      setState(() {
+        showFeedback = true;
+        if (isCorrect) {
+          feedbackMessage = 'Dobrze! 🎉';
+          feedbackColor = Colors.green;
+          feedbackIcon = Icons.check;
+        } else {
+          feedbackMessage = 'Źle! Spróbuj ponownie.';
+          feedbackColor = Colors.red;
+          feedbackIcon = Icons.close;
+        }
+      });
+      // Ukryj komunikat po 1,5 sekundach
+      Future.delayed(Duration(milliseconds: 1500), () {
         setState(() {
-          _generateNewQuestion();
+          showFeedback = false;
         });
+        if (isCorrect) {
+          _generateNewQuestion();
+        }
       });
     }
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -250,71 +264,159 @@ class _GamePageState extends State<GamePage> {
       appBar: AppBar(
         title: Text('Co nie pasuje?'),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Wybierz opcję, która nie pasuje:',
-              style: TextStyle(fontSize: 22),
-              textAlign: TextAlign.center,
+      body: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Wybierz opcję, która nie pasuje:',
+                  style: TextStyle(fontSize: 22),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 20),
+                AnimatedSwitcher(
+                  duration: Duration(milliseconds: 500),
+                  transitionBuilder: (Widget child, Animation<double> animation) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
+                  child: Wrap(
+                    key: ValueKey<int>(options.hashCode),
+                    alignment: WrapAlignment.center,
+                    spacing: 20,
+                    runSpacing: 10,
+                    children: List.generate(
+                      options.length,
+                      (index) {
+                        String imagePath = optionImages[options[index]] ??
+                            'assets/images/placeholder.png';
+                        return OptionButton(
+                          optionText: options[index],
+                          imageAsset: imagePath,
+                          onPressed: () => _checkAnswer(index),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 20),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 20,
-              runSpacing: 10,
-              children: List.generate(
-                options.length,
-                (index) {
-                  // Pobieramy ścieżkę do obrazka – jeśli nie ma, używamy placeholdera
-                  String imagePath = optionImages[options[index]] ??
-                      'assets/images/placeholder.png';
-                  return OptionButton(
-                    optionText: options[index],
-                    imageAsset: imagePath,
-                    onPressed: () => _checkAnswer(index),
-                  );
-                },
+          ),
+          // Komunikat informujący o wyniku
+          Positioned(
+            bottom: 50,
+            left: 0,
+            right: 0,
+            child: AnimatedOpacity(
+              opacity: showFeedback ? 1 : 0,
+              duration: Duration(milliseconds: 500),
+              child: Center(
+                child: Container(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: feedbackColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        feedbackIcon,
+                        color: Colors.white,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        feedbackMessage,
+                        style: TextStyle(
+                            color: Colors.white, fontSize: 18),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class OptionButton extends StatelessWidget {
+class OptionButton extends StatefulWidget {
   final String optionText;
   final String imageAsset;
   final VoidCallback onPressed;
 
-  const OptionButton({super.key, required this.optionText, required this.imageAsset, required this.onPressed});
+  const OptionButton({
+    super.key,
+    required this.optionText,
+    required this.imageAsset,
+    required this.onPressed,
+  });
+
+  @override
+  _OptionButtonState createState() => _OptionButtonState();
+}
+
+class _OptionButtonState extends State<OptionButton> {
+  double _scale = 1.0;
+
+  void _onTapDown(TapDownDetails details) {
+    setState(() {
+      _scale = 0.95;
+    });
+  }
+
+  void _onTapUp(TapUpDetails details) {
+    setState(() {
+      _scale = 1.0;
+    });
+    widget.onPressed();
+  }
+
+  void _onTapCancel() {
+    setState(() {
+      _scale = 1.0;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
-      child: SizedBox(
-        width: 120,
-        height: 160,
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+      child: GestureDetector(
+        onTapDown: _onTapDown,
+        onTapUp: _onTapUp,
+        onTapCancel: _onTapCancel,
+        child: Transform.scale(
+          scale: _scale,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: 120, maxWidth: 160),
+            child: ElevatedButton(
+              onPressed: widget.onPressed,
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: EdgeInsets.all(10),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(widget.imageAsset, height: 80, fit: BoxFit.contain),
+                  SizedBox(height: 10),
+                  Flexible(
+                    child: Text(
+                      widget.optionText,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            padding: EdgeInsets.all(10),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Wyświetlamy obrazek – ustawiamy rozmiar wg potrzeb
-              Image.asset(imageAsset, height: 100, fit: BoxFit.contain),
-              SizedBox(height: 10),
-              Text(optionText, textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
-            ],
           ),
         ),
       ),
