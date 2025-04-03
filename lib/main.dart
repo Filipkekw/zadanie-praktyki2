@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'dart:math';
 
 void main() {
   runApp(CoNiePasujeApp());
+
+  doWhenWindowReady(() { // zmiana rozmiaru okna
+    final initialSize = Size(600, 800);
+    appWindow.minSize = Size(600, 800);
+    appWindow.size = initialSize;
+    appWindow.alignment = Alignment.center;
+    appWindow.show();
+  }
+  );
 }
 
 class CoNiePasujeApp extends StatelessWidget {
@@ -26,29 +36,52 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('Co nie pasuje?'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'Witaj w grze "Co nie pasuje?"',
-              style: TextStyle(fontSize: 24),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => GamePage()),
-                );
-              },
-              child: Text('Start!'),
-            ),
-          ],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [const Color.fromARGB(255, 128, 185, 233), const Color.fromARGB(255, 154, 66, 170)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight
+        ),
+      ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                'Witaj w grze "Co nie pasuje?"',
+                style: TextStyle(fontSize: 24),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 20),
+              // Przyciski wyboru trybu gry
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => GamePage()),
+                  );
+                },
+                
+                child: Text('Tryb Klasyczny'),
+              ),
+              SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => TimeSelectionScreen()),
+                  );
+                },
+                child: Text('Tryb Czasowy'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -179,7 +212,7 @@ class _GamePageState extends State<GamePage> {
     'Brązowy': 'assets/images/brazowy.png',
     'Czarny': 'assets/images/czarny.png',
     'Biały': 'assets/images/bialy.png',
-    // Shapes
+    // Cartoon and Movie Characters
     'Myszka Miki': 'assets/images/miki.png',
     'Kubuś Puchatek': 'assets/images/kubus.png',
     'Spider-Man': 'assets/images/spiderman.png',
@@ -232,37 +265,39 @@ class _GamePageState extends State<GamePage> {
     correctIndex = options.indexOf(selectedNonMatching);
   }
 
-    void _checkAnswer(int index) {
-      bool isCorrect = index == correctIndex;
+  void _checkAnswer(int index) {
+    bool isCorrect = index == correctIndex;
+    setState(() {
+      showFeedback = true;
+      if (isCorrect) {
+        feedbackMessage = 'Dobrze! 🎉';
+        feedbackColor = Colors.green;
+        feedbackIcon = Icons.check;
+      } else {
+        feedbackMessage = 'Źle! Spróbuj ponownie.';
+        feedbackColor = Colors.red;
+        feedbackIcon = Icons.close;
+      }
+    });
+    // Ukryj komunikat po 1,5 sekundach
+    Future.delayed(Duration(milliseconds: 1500), () {
       setState(() {
-        showFeedback = true;
-        if (isCorrect) {
-          feedbackMessage = 'Dobrze! 🎉';
-          feedbackColor = Colors.green;
-          feedbackIcon = Icons.check;
-        } else {
-          feedbackMessage = 'Źle! Spróbuj ponownie.';
-          feedbackColor = Colors.red;
-          feedbackIcon = Icons.close;
-        }
+        showFeedback = false;
       });
-      // Ukryj komunikat po 1,5 sekundach
-      Future.delayed(Duration(milliseconds: 1500), () {
-        setState(() {
-          showFeedback = false;
-        });
-        if (isCorrect) {
-          _generateNewQuestion();
-        }
-      });
-    }
-
+      if (isCorrect) {
+        _generateNewQuestion();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text('Co nie pasuje?'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: Stack(
         children: [
@@ -271,7 +306,7 @@ class _GamePageState extends State<GamePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Wybierz opcję, która nie pasuje:',
+                  'Co nie pasuje?',
                   style: TextStyle(fontSize: 22),
                   textAlign: TextAlign.center,
                 ),
@@ -313,8 +348,7 @@ class _GamePageState extends State<GamePage> {
               duration: Duration(milliseconds: 500),
               child: Center(
                 child: Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
                     color: feedbackColor,
                     borderRadius: BorderRadius.circular(20),
@@ -329,8 +363,7 @@ class _GamePageState extends State<GamePage> {
                       SizedBox(width: 8),
                       Text(
                         feedbackMessage,
-                        style: TextStyle(
-                            color: Colors.white, fontSize: 18),
+                        style: TextStyle(color: Colors.white, fontSize: 18),
                       ),
                     ],
                   ),
@@ -418,6 +451,79 @@ class _OptionButtonState extends State<OptionButton> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// Ekran wyboru czasu w trybie czasowym
+class TimeSelectionScreen extends StatefulWidget {
+  const TimeSelectionScreen({super.key});
+
+  @override
+  _TimeSelectionScreenState createState() => _TimeSelectionScreenState();
+}
+
+class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
+  double _selectedTime = 5; // Domyślnie 5 minut
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Wybierz czas gry")),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            "Ilość minut: ${_selectedTime.toInt()}",
+            style: TextStyle(fontSize: 20),
+          ),
+          Slider(
+            value: _selectedTime,
+            min: 1,
+            max: 30,
+            divisions: 29, // 1-minutowe skoki
+            label: "${_selectedTime.toInt()} min",
+            onChanged: (double value) {
+              setState(() {
+                _selectedTime = value;
+              });
+            },
+          ),
+          SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      TimedGameScreen(timeLimit: _selectedTime.toInt()),
+                ),
+              );
+            },
+            child: Text("Start"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Ekran gry w trybie czasowym – tutaj możesz rozbudować logikę o licznik i punktację
+class TimedGameScreen extends StatelessWidget {
+  final int timeLimit;
+
+  const TimedGameScreen({super.key, required this.timeLimit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Tryb Czasowy")),
+      body: Center(
+        child: Text(
+          "Masz $timeLimit minut na grę!",
+          style: TextStyle(fontSize: 24),
         ),
       ),
     );
