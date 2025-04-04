@@ -164,7 +164,7 @@ class HomePage extends StatelessWidget {
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.of(context).push(_createRoute());
+                  Navigator.of(context).push(_createRoute(isSurvival: false));
                 },
                 child: Text('Tryb Nieskończony'),
               ),
@@ -173,7 +173,7 @@ class HomePage extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => TimeSelectionScreen()),
+                    _createTimeSelectionRoute(),
                   );
                 },
                 child: Text('Tryb Czasowy'),
@@ -181,10 +181,7 @@ class HomePage extends StatelessWidget {
               SizedBox(height: 10),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => GamePage(isSurvival: true)),
-                  );
+                  Navigator.of(context).push(_createRoute(isSurvival: true));
                 },
                 child: Text('Tryb Przetrwania'),
               ),
@@ -206,17 +203,15 @@ class HomePage extends StatelessWidget {
   }
 }
 
-Route _createRoute() {
+Route _createRoute({int? timeLimit, required bool isSurvival}) {
   return PageRouteBuilder(
-    pageBuilder: (context, animation, secondaryAnimation) => GamePage(isSurvival: false),
+    pageBuilder: (context, animation, secondaryAnimation) => GamePage(timeLimit: timeLimit, isSurvival: isSurvival),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       const begin = Offset(0.0, 1.0);
       const end = Offset.zero;
       const curve = Curves.easeInOut;
-
       var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
       var fadeTween = Tween<double>(begin: 0.0, end: 1.0);
-
       return FadeTransition(
         opacity: animation.drive(fadeTween),
         child: SlideTransition(
@@ -227,6 +222,29 @@ Route _createRoute() {
     },
   );
 }
+
+Route _createTimeSelectionRoute() {
+  return PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) =>
+        TimeSelectionScreen(),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      const begin = Offset(0.0, 1.0);
+      const end = Offset.zero;
+      const curve = Curves.easeInOut;
+      var tween =
+          Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+      var fadeTween = Tween<double>(begin: 0.0, end: 1.0);
+      return FadeTransition(
+        opacity: animation.drive(fadeTween),
+        child: SlideTransition(
+          position: animation.drive(tween),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
 
 class RecordsPage extends StatelessWidget {
   const RecordsPage({super.key});
@@ -827,8 +845,7 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
 
   void _startGame() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-          builder: (context) => GamePage(timeLimit: _selectedTime, isSurvival: true)),
+      _createRoute(timeLimit: _selectedTime, isSurvival: true),
     );
   }
 
@@ -860,12 +877,19 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
               ? Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      _countdown > 0 ? '$_countdown' : 'Start!',
-                      style: TextStyle(
-                          fontSize: 64,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
+                    AnimatedSwitcher(
+                      duration: Duration(milliseconds: 500),
+                      transitionBuilder: (child, animation) {
+                        return ScaleTransition(scale: animation, child: child);
+                      },
+                      child: Text(
+                        _countdown > 0 ? '$_countdown' : 'Start!',
+                        key: ValueKey<int>(_countdown),
+                        style: TextStyle(
+                            fontSize: 64,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
                     ),
                   ],
                 )
