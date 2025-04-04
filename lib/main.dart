@@ -3,6 +3,28 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'dart:math';
 import 'dart:async';
 
+// Klasa przechowująca rekordy
+class RecordsRepository {
+  static List<int> survivalRecords = [];
+  static Map<int, List<int>> timedRecords = {
+    30: [],
+    60: [],
+    90: [],
+  };
+
+  static void addSurvivalRecord(int score) {
+    survivalRecords.add(score);
+    survivalRecords.sort((a, b) => b.compareTo(a));
+  }
+
+  static void addTimedRecord(int timeLimit, int score) {
+    if (timedRecords.containsKey(timeLimit)) {
+      timedRecords[timeLimit]!.add(score);
+      timedRecords[timeLimit]!.sort((a, b) => b.compareTo(a));
+    }
+  }
+}
+
 void main() {
   runApp(CoNiePasujeApp());
 
@@ -44,7 +66,8 @@ class HomePage extends StatelessWidget {
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [Colors.blue.shade300, Colors.purple.shade500],
+          gradient: LinearGradient(
+            colors: [Colors.blue.shade300, Colors.purple.shade500],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -59,7 +82,6 @@ class HomePage extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 20),
-              // Przyciski wyboru trybu gry
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).push(_createRoute());
@@ -71,8 +93,7 @@ class HomePage extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) => TimeSelectionScreen()),
+                    MaterialPageRoute(builder: (context) => TimeSelectionScreen()),
                   );
                 },
                 child: Text('Tryb Czasowy'),
@@ -82,8 +103,7 @@ class HomePage extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => GamePage(isSurvival: true),
-                    ),
+                    MaterialPageRoute(builder: (context) => GamePage(isSurvival: true)),
                   );
                 },
                 child: Text('Tryb Przetrwania'),
@@ -93,11 +113,11 @@ class HomePage extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder:(context) => RecordsPage(),)
+                    MaterialPageRoute(builder: (context) => RecordsPage()),
                   );
                 },
                 child: Text('Rekordy'),
-                )
+              ),
             ],
           ),
         ),
@@ -108,9 +128,9 @@ class HomePage extends StatelessWidget {
 
 Route _createRoute() {
   return PageRouteBuilder(
-    pageBuilder: (context, animation, secondaryAnimation) => GamePage(isSurvival: false,),
+    pageBuilder: (context, animation, secondaryAnimation) => GamePage(isSurvival: false),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      const begin = Offset(0.0, 1.0); // Start na dole ekranu
+      const begin = Offset(0.0, 1.0);
       const end = Offset.zero;
       const curve = Curves.easeInOut;
 
@@ -128,6 +148,135 @@ Route _createRoute() {
   );
 }
 
+class RecordsPage extends StatelessWidget {
+  const RecordsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2, // Główne zakładki: Tryb Czasowy i Tryb Survival
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Rekordy'),
+          bottom: TabBar(
+            tabs: [
+              Tab(text: 'Tryb Czasowy'),
+              Tab(text: 'Tryb Survival'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            // Zakładka dla trybu czasowego z podziałem na 30, 60 i 90 sekund
+            TimeRecordsSection(),
+            // Zakładka z rekordami dla trybu survival
+            RecordsSection(
+              title: 'Rekordy trybu survival',
+              records: RecordsRepository.survivalRecords,
+              emptyMessage: 'Brak rekordów dla trybu survival.',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class TimeRecordsSection extends StatelessWidget {
+  const TimeRecordsSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 3, // Podzakładki dla 30, 60 i 90 sekund
+      child: Column(
+        children: [
+          TabBar(
+            labelColor: Theme.of(context).primaryColor,
+            unselectedLabelColor: Colors.grey,
+            tabs: [
+              Tab(text: '30 s'),
+              Tab(text: '60 s'),
+              Tab(text: '90 s'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                RecordsSection(
+                  title: 'Rekordy 30 s',
+                  records: RecordsRepository.timedRecords[30] ?? [],
+                  emptyMessage: 'Brak rekordów dla trybu 30 sekund.',
+                ),
+                RecordsSection(
+                  title: 'Rekordy 60 s',
+                  records: RecordsRepository.timedRecords[60] ?? [],
+                  emptyMessage: 'Brak rekordów dla trybu 60 sekund.',
+                ),
+                RecordsSection(
+                  title: 'Rekordy 90 s',
+                  records: RecordsRepository.timedRecords[90] ?? [],
+                  emptyMessage: 'Brak rekordów dla trybu 90 sekund.',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Widget do wyświetlania listy rekordów z opcjonalnym nagłówkiem
+class RecordsSection extends StatelessWidget {
+  final String title;
+  final List<int> records;
+  final String emptyMessage;
+
+  const RecordsSection({
+    super.key,
+    required this.title,
+    required this.records,
+    required this.emptyMessage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: [
+        Text(
+          title,
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        records.isEmpty
+            ? Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    emptyMessage,
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              )
+            : Column(
+                children: records
+                    .map(
+                      (score) => Card(
+                        child: ListTile(
+                          leading: Icon(Icons.star),
+                          title: Text('Wynik: $score'),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+      ],
+    );
+  }
+}
+
 class GamePage extends StatefulWidget {
   final int? timeLimit; // Opcjonalny limit czasu
   final bool isSurvival;
@@ -142,15 +291,14 @@ class _GamePageState extends State<GamePage> {
   bool showFeedback = false;
   String feedbackMessage = '';
   Color feedbackColor = Colors.green;
-  IconData feedbackIcon = Icons.check; // Ikona domyślna dla poprawnej odpowiedzi
+  IconData feedbackIcon = Icons.check;
   int? _timeLeft;
   Timer? _timer;
-  int _score = 0; // Zmienna do liczenia punktów
+  int _score = 0;
   int _lives = 3;
 
   final Random _random = Random();
 
-  // Mapowanie kategorii z 10 elementami każda
   final Map<String, List<String>> categories = {
     'Fruits': [
       'Jabłko',
@@ -213,9 +361,7 @@ class _GamePageState extends State<GamePage> {
     ],
   };
 
-  // Mapowanie nazw opcji na ścieżki do obrazków
   final Map<String, String> optionImages = {
-    // Fruits
     'Jabłko': 'assets/images/jablko.png',
     'Banan': 'assets/images/banan.png',
     'Gruszka': 'assets/images/gruszka.png',
@@ -226,7 +372,6 @@ class _GamePageState extends State<GamePage> {
     'Mango': 'assets/images/mango.png',
     'Ananas': 'assets/images/ananas.png',
     'Cytryna': 'assets/images/cytryna.png',
-    // Vehicles
     'Samochód': 'assets/images/samochod.png',
     'Rower': 'assets/images/rower.png',
     'Motocykl': 'assets/images/motocykl.png',
@@ -237,7 +382,6 @@ class _GamePageState extends State<GamePage> {
     'Helikopter': 'assets/images/helikopter.png',
     'Skuter': 'assets/images/skuter.png',
     'Ciężarówka': 'assets/images/ciezarowka.png',
-    // Animals
     'Kot': 'assets/images/kot.png',
     'Pies': 'assets/images/pies.png',
     'Królik': 'assets/images/krolik.png',
@@ -248,7 +392,6 @@ class _GamePageState extends State<GamePage> {
     'Żyrafa': 'assets/images/zyrafa.png',
     'Małpa': 'assets/images/malpa.png',
     'Niedźwiedź': 'assets/images/niedzwiedz.png',
-    // Colors
     'Czerwony': 'assets/images/czerwony.png',
     'Niebieski': 'assets/images/niebieski.png',
     'Zielony': 'assets/images/zielony.png',
@@ -259,7 +402,6 @@ class _GamePageState extends State<GamePage> {
     'Brązowy': 'assets/images/brazowy.png',
     'Czarny': 'assets/images/czarny.png',
     'Biały': 'assets/images/bialy.png',
-    // Cartoon and Movie Characters
     'Myszka Miki': 'assets/images/miki.png',
     'Kubuś Puchatek': 'assets/images/kubus.png',
     'Spider-Man': 'assets/images/spiderman.png',
@@ -274,36 +416,34 @@ class _GamePageState extends State<GamePage> {
   late List<String> options;
   late int correctIndex;
 
-  // Generowanie nowego pytania
   void _generateNewQuestion() {
     List<String> categoryKeys = categories.keys.toList();
     String matchingCategory =
         categoryKeys[_random.nextInt(categoryKeys.length)];
-
-    // Losowanie kategorii niepasującej
     String nonMatchingCategory;
     do {
       nonMatchingCategory =
           categoryKeys[_random.nextInt(categoryKeys.length)];
     } while (nonMatchingCategory == matchingCategory);
-
-    // Losowanie 2 unikalnych elementów z kategorii pasujących
     List<String> matchingItems = List.from(categories[matchingCategory]!);
     matchingItems.shuffle();
     List<String> selectedMatching = matchingItems.take(2).toList();
-
-    // Losowanie 1 elementu z kategorii niepasującej
     List<String> nonMatchingItems = List.from(categories[nonMatchingCategory]!);
     nonMatchingItems.shuffle();
     String selectedNonMatching = nonMatchingItems.first;
-
-    // Łączenie opcji i tasowanie
     options = List.from(selectedMatching);
     options.add(selectedNonMatching);
     options.shuffle();
-
-    // Znajdowanie indeksu niepasującej opcji
     correctIndex = options.indexOf(selectedNonMatching);
+  }
+
+  // Metoda zapisująca rekord w zależności od trybu
+  void _saveRecord() {
+    if (widget.isSurvival) {
+      RecordsRepository.addSurvivalRecord(_score);
+    } else if (widget.timeLimit != null) {
+      RecordsRepository.addTimedRecord(widget.timeLimit!, _score);
+    }
   }
 
   void _checkAnswer(int index) {
@@ -319,19 +459,15 @@ class _GamePageState extends State<GamePage> {
         feedbackMessage = 'Źle! Spróbuj ponownie.';
         feedbackColor = Colors.red;
         feedbackIcon = Icons.close;
-
-        // Odejmowanie życia TYLKO w trybie Survival i Czasowym
         if (widget.isSurvival || widget.timeLimit != null) {
           _lives--;
         }
       }
     });
-
     Future.delayed(Duration(milliseconds: 1500), () {
       setState(() {
         showFeedback = false;
       });
-      // W trybie Survival lub Czasowym, niezależnie od odpowiedzi, generujemy nowe pytanie (o ile gracz ma jeszcze życia)
       if (widget.isSurvival || widget.timeLimit != null) {
         if (_lives <= 0) {
           _endGame();
@@ -339,7 +475,6 @@ class _GamePageState extends State<GamePage> {
           _generateNewQuestion();
         }
       } else {
-        // W trybie nieskończonym generujemy nowe pytanie tylko po poprawnej odpowiedzi
         if (isCorrect) {
           _generateNewQuestion();
         }
@@ -350,13 +485,13 @@ class _GamePageState extends State<GamePage> {
   @override
   void initState() {
     super.initState();
-    _generateNewQuestion(); // Generujemy pierwsze pytanie
+    _generateNewQuestion();
     if (widget.timeLimit != null) {
       _timeLeft = widget.timeLimit;
       _startTimer();
     }
     if (!widget.isSurvival) {
-      _lives = -1; // Jeśli tryb nie jest survivalem, ustawiamy ilość żyć na -1 (brak żyć)
+      _lives = -1;
     }
   }
 
@@ -367,13 +502,14 @@ class _GamePageState extends State<GamePage> {
           _timeLeft = _timeLeft! - 1;
         });
       } else {
-        timer.cancel();
+        _timer?.cancel();
         _onTimeUp();
       }
     });
   }
 
   void _onTimeUp() {
+    _saveRecord();
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -397,6 +533,27 @@ class _GamePageState extends State<GamePage> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  void _endGame() {
+    _saveRecord();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Koniec gry!'),
+        content: Text('Twój wynik: $_score punktów\n${widget.isSurvival ? 'Nie masz już więcej żyć!' : 'Czas minął!'}'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
+            },
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -450,8 +607,7 @@ class _GamePageState extends State<GamePage> {
                   SizedBox(height: 20),
                   AnimatedSwitcher(
                     duration: Duration(milliseconds: 500),
-                    transitionBuilder:
-                        (Widget child, Animation<double> animation) {
+                    transitionBuilder: (Widget child, Animation<double> animation) {
                       return FadeTransition(
                         opacity: animation,
                         child: child,
@@ -479,7 +635,6 @@ class _GamePageState extends State<GamePage> {
                 ],
               ),
             ),
-            // Komunikat informujący o wyniku
             Positioned(
               bottom: 50,
               left: 0,
@@ -489,8 +644,7 @@ class _GamePageState extends State<GamePage> {
                 duration: Duration(milliseconds: 500),
                 child: Center(
                   child: Container(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
                       color: feedbackColor,
                       borderRadius: BorderRadius.circular(20),
@@ -498,15 +652,11 @@ class _GamePageState extends State<GamePage> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          feedbackIcon,
-                          color: Colors.white,
-                        ),
+                        Icon(feedbackIcon, color: Colors.white),
                         SizedBox(width: 8),
                         Text(
                           feedbackMessage,
-                          style:
-                              TextStyle(color: Colors.white, fontSize: 18),
+                          style: TextStyle(color: Colors.white, fontSize: 18),
                         ),
                       ],
                     ),
@@ -519,29 +669,8 @@ class _GamePageState extends State<GamePage> {
       ),
     );
   }
-  
-  void _endGame() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('Koniec gry!'),
-        content: Text('Twój wynik: $_score punktów\n${widget.isSurvival ? 'Nie masz już więcej żyć!' : 'Czas minął!'}'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Zamknięcie dialogu
-              Navigator.of(context).pop(); // Powrót do ekranu wyboru trybu
-            },
-            child: Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-// Uproszczona wersja OptionButton – korzysta wyłącznie z ElevatedButton
 class OptionButton extends StatelessWidget {
   final String optionText;
   final String imageAsset;
@@ -594,8 +723,8 @@ class TimeSelectionScreen extends StatefulWidget {
 }
 
 class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
-  int? _selectedTime; // Wybrany czas gry
-  int _countdown = 3; // Odliczanie przed startem
+  int? _selectedTime;
+  int _countdown = 3;
   bool _isCountingDown = false;
   Timer? _timer;
 
@@ -619,7 +748,7 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
   void _startGame() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-          builder: (context) => GamePage(timeLimit: _selectedTime, isSurvival: true,)),
+          builder: (context) => GamePage(timeLimit: _selectedTime, isSurvival: true)),
     );
   }
 
@@ -695,127 +824,6 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
         },
         child: Text('$time s'),
       ),
-    );
-  }
-}
-
-class RecordsPage extends StatelessWidget {
-  const RecordsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2, // Główne zakładki: Tryb Czasowy i Tryb Survival
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Rekordy'),
-          bottom: TabBar(
-            tabs: [
-              Tab(text: 'Tryb Czasowy'),
-              Tab(text: 'Tryb Survival'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            // Zakładka dla trybu czasowego z podziałem na 30, 60 i 90 sekund
-            TimeRecordsSection(),
-            // Zakładka z rekordami dla trybu survival – na razie pusta
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _buildRecordsSection(
-                title: 'Rekordy trybu survival',
-                message: 'Brak rekordów dla trybu survival.',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecordsSection({required String title, required String message}) {
-    return ListView(
-      children: [
-        Text(
-          title,
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              message,
-              style: TextStyle(fontSize: 18),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class TimeRecordsSection extends StatelessWidget {
-  const TimeRecordsSection({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3, // Podzakładki dla 30, 60 i 90 sekund
-      child: Column(
-        children: [
-          TabBar(
-            labelColor: Theme.of(context).primaryColor,
-            unselectedLabelColor: Colors.grey,
-            tabs: [
-              Tab(text: '30 s'),
-              Tab(text: '60 s'),
-              Tab(text: '90 s'),
-            ],
-          ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _buildRecordsSection(
-                  title: 'Rekordy 30 s',
-                  message: 'Brak rekordów dla trybu 30 sekund.',
-                ),
-                _buildRecordsSection(
-                  title: 'Rekordy 60 s',
-                  message: 'Brak rekordów dla trybu 60 sekund.',
-                ),
-                _buildRecordsSection(
-                  title: 'Rekordy 90 s',
-                  message: 'Brak rekordów dla trybu 90 sekund.',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecordsSection({required String title, required String message}) {
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        Text(
-          title,
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              message,
-              style: TextStyle(fontSize: 18),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
