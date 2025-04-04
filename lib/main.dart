@@ -77,6 +77,17 @@ class HomePage extends StatelessWidget {
                 },
                 child: Text('Tryb Czasowy'),
               ),
+              SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => GamePage(isSurvival: true),
+                    ),
+                  );
+                },
+                child: Text('Tryb Przetrwania'),
+              )
             ],
           ),
         ),
@@ -87,7 +98,7 @@ class HomePage extends StatelessWidget {
 
 Route _createRoute() {
   return PageRouteBuilder(
-    pageBuilder: (context, animation, secondaryAnimation) => GamePage(),
+    pageBuilder: (context, animation, secondaryAnimation) => GamePage(isSurvival: false,),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       const begin = Offset(0.0, 1.0); // Start na dole ekranu
       const end = Offset.zero;
@@ -109,8 +120,9 @@ Route _createRoute() {
 
 class GamePage extends StatefulWidget {
   final int? timeLimit; // Opcjonalny limit czasu
+  final bool isSurvival;
 
-  const GamePage({Key? key, this.timeLimit}) : super(key: key);
+  const GamePage({Key? key, this.timeLimit, required this.isSurvival}) : super(key: key);
 
   @override
   _GamePageState createState() => _GamePageState();
@@ -124,6 +136,7 @@ class _GamePageState extends State<GamePage> {
   int? _timeLeft;
   Timer? _timer;
   int _score = 0; // Zmienna do liczenia punktów
+  int _lives = 3;
 
   final Random _random = Random();
 
@@ -291,11 +304,16 @@ class _GamePageState extends State<GamePage> {
         feedbackMessage = 'Dobrze! 🎉';
         feedbackColor = Colors.green;
         feedbackIcon = Icons.check;
-        _score++; // ZWIĘKSZENIE LICZNIKA PUNKTÓW
+        _score++;
       } else {
         feedbackMessage = 'Źle! Spróbuj ponownie.';
         feedbackColor = Colors.red;
         feedbackIcon = Icons.close;
+
+        // Odejmowanie życia TYLKO w trybie Survival i Czasowym
+        if (widget.isSurvival || widget.timeLimit != null) {
+          _lives--;
+        }
       }
     });
 
@@ -303,12 +321,21 @@ class _GamePageState extends State<GamePage> {
       setState(() {
         showFeedback = false;
       });
-      if (isCorrect) {
-        _generateNewQuestion();
+      // W trybie Survival lub Czasowym, niezależnie od odpowiedzi, generujemy nowe pytanie (o ile gracz ma jeszcze życia)
+      if (widget.isSurvival || widget.timeLimit != null) {
+        if (_lives <= 0) {
+          _endGame();
+        } else {
+          _generateNewQuestion();
+        }
+      } else {
+        // W trybie nieskończonym generujemy nowe pytanie tylko po poprawnej odpowiedzi
+        if (isCorrect) {
+          _generateNewQuestion();
+        }
       }
     });
   }
-
 
   @override
   void initState() {
@@ -317,6 +344,9 @@ class _GamePageState extends State<GamePage> {
     if (widget.timeLimit != null) {
       _timeLeft = widget.timeLimit;
       _startTimer();
+    }
+    if (!widget.isSurvival) {
+      _lives = -1; // Jeśli tryb nie jest survivalem, ustawiamy ilość żyć na -1 (brak żyć)
     }
   }
 
@@ -382,6 +412,12 @@ class _GamePageState extends State<GamePage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  if (widget.isSurvival || widget.timeLimit != null)
+                    Text(
+                      'Życia: $_lives ❤️',
+                      style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  SizedBox(height: 20),
                   Text(
                     'Co nie pasuje?',
                     style: TextStyle(fontSize: 22, color: Colors.white),
@@ -397,10 +433,10 @@ class _GamePageState extends State<GamePage> {
                           fontWeight: FontWeight.bold),
                     ),
                   SizedBox(height: 10),
-                    Text(
-                      'Punkty: $_score',
-                      style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
+                  Text(
+                    'Punkty: $_score',
+                    style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
                   SizedBox(height: 20),
                   AnimatedSwitcher(
                     duration: Duration(milliseconds: 500),
@@ -470,6 +506,26 @@ class _GamePageState extends State<GamePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+  
+  void _endGame() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Koniec gry!'),
+        content: Text('Twój wynik: $_score punktów\n${widget.isSurvival ? 'Nie masz już więcej żyć!' : 'Czas minął!'}'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Zamknięcie dialogu
+              Navigator.of(context).pop(); // Powrót do ekranu wyboru trybu
+            },
+            child: Text('OK'),
+          ),
+        ],
       ),
     );
   }
@@ -553,7 +609,7 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
   void _startGame() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-          builder: (context) => GamePage(timeLimit: _selectedTime)),
+          builder: (context) => GamePage(timeLimit: _selectedTime, isSurvival: true,)),
     );
   }
 
