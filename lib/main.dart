@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'dart:math';
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
 
 // Klasa przechowująca rekordy
 class RecordsRepository {
@@ -12,21 +15,98 @@ class RecordsRepository {
     90: [],
   };
 
-  static void addSurvivalRecord(int score) {
-    survivalRecords.add(score);
-    survivalRecords.sort((a, b) => b.compareTo(a));
+  static final RecordsStorage _storage = RecordsStorage();
+
+  // Wczytujemy rekordy przy uruchomieniu aplikacji
+  static Future<void> loadRecords() async {
+    Map<String, dynamic> data = await _storage.readRecords();
+    survivalRecords = List<int>.from(data['survivalRecords'] ?? []);
+    Map<String, dynamic> timedData = data['timedRecords'] ?? {};
+    timedRecords[30] = List<int>.from(timedData['30'] ?? []);
+    timedRecords[60] = List<int>.from(timedData['60'] ?? []);
+    timedRecords[90] = List<int>.from(timedData['90'] ?? []);
   }
 
-  static void addTimedRecord(int timeLimit, int score) {
+  static Future<void> _saveToStorage() async {
+    Map<String, dynamic> data = {
+      'survivalRecords': survivalRecords,
+      'timedRecords': {
+        '30': timedRecords[30],
+        '60': timedRecords[60],
+        '90': timedRecords[90],
+      },
+    };
+    await _storage.writeRecords(data);
+  }
+
+  static Future<void> addSurvivalRecord(int score) async {
+    survivalRecords.add(score);
+    survivalRecords.sort((a, b) => b.compareTo(a));
+    await _saveToStorage();
+  }
+
+  static Future<void> addTimedRecord(int timeLimit, int score) async {
     if (timedRecords.containsKey(timeLimit)) {
       timedRecords[timeLimit]!.add(score);
       timedRecords[timeLimit]!.sort((a, b) => b.compareTo(a));
+      await _saveToStorage();
     }
   }
 }
 
-void main() {
-  runApp(CoNiePasujeApp());
+
+class RecordsStorage {
+  static const String _fileName = "records.json";
+
+  Future<String> get _localPath async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+
+  Future<File> get _localFile async {
+    final path = await _localPath;
+    return File('$path/$_fileName');
+  }
+
+  Future<Map<String, dynamic>> readRecords() async {
+    try {
+      final file = await _localFile;
+      if (await file.exists()) {
+        String contents = await file.readAsString();
+        return json.decode(contents);
+      } else {
+        // Jeśli plik nie istnieje, zwracamy strukturę domyślną
+        return {
+          'survivalRecords': [],
+          'timedRecords': {
+            '30': [],
+            '60': [],
+            '90': [],
+          }
+        };
+      }
+    } catch (e) {
+      return {
+        'survivalRecords': [],
+        'timedRecords': {
+          '30': [],
+          '60': [],
+          '90': [],
+        }
+      };
+    }
+  }
+
+  Future<File> writeRecords(Map<String, dynamic> records) async {
+    final file = await _localFile;
+    return file.writeAsString(json.encode(records));
+  }
+}
+
+  void main() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await RecordsRepository.loadRecords();
+    runApp(CoNiePasujeApp());
 
   doWhenWindowReady(() {
     final initialSize = Size(600, 800);
