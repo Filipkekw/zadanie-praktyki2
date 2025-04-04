@@ -8,6 +8,11 @@
 - Interfejs przyjazny dla dzieci
 - Informacja zwrotna o poprawnej lub błędnej odpowiedzi
 
+## 🎮 Tryby gry
+- Tryb Nieskończony - Brak ograniczeń czasowych oraz pomyłek
+- Tryb Czasowy - Ograniczenie czasowe wybrane spośród opcji, limit trzech żyć
+- Tryb Przetrwania - Brak ograniczenia czasowego, limit trzech żyć
+
 ## 🔧 Wymagania
 Aby uruchomić aplikację, potrzebujesz:
 - Flutter SDK (zalecana najnowsza wersja)
