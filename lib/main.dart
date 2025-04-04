@@ -44,7 +44,7 @@ class HomePage extends StatelessWidget {
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [Color.fromARGB(255, 128, 185, 233), Color.fromARGB(255, 154, 66, 170)],
+          gradient: LinearGradient(colors: [Colors.blue.shade300, Colors.purple.shade500],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -87,7 +87,17 @@ class HomePage extends StatelessWidget {
                   );
                 },
                 child: Text('Tryb Przetrwania'),
-              )
+              ),
+              SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder:(context) => RecordsPage(),)
+                  );
+                },
+                child: Text('Rekordy'),
+                )
             ],
           ),
         ),
@@ -401,7 +411,7 @@ class _GamePageState extends State<GamePage> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.orange.shade200, Colors.red.shade400],
+            colors: [Colors.blue.shade300, Colors.purple.shade500],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -685,6 +695,127 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
         },
         child: Text('$time s'),
       ),
+    );
+  }
+}
+
+class RecordsPage extends StatelessWidget {
+  const RecordsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2, // Główne zakładki: Tryb Czasowy i Tryb Survival
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Rekordy'),
+          bottom: TabBar(
+            tabs: [
+              Tab(text: 'Tryb Czasowy'),
+              Tab(text: 'Tryb Survival'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            // Zakładka dla trybu czasowego z podziałem na 30, 60 i 90 sekund
+            TimeRecordsSection(),
+            // Zakładka z rekordami dla trybu survival – na razie pusta
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _buildRecordsSection(
+                title: 'Rekordy trybu survival',
+                message: 'Brak rekordów dla trybu survival.',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecordsSection({required String title, required String message}) {
+    return ListView(
+      children: [
+        Text(
+          title,
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 18),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class TimeRecordsSection extends StatelessWidget {
+  const TimeRecordsSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 3, // Podzakładki dla 30, 60 i 90 sekund
+      child: Column(
+        children: [
+          TabBar(
+            labelColor: Theme.of(context).primaryColor,
+            unselectedLabelColor: Colors.grey,
+            tabs: [
+              Tab(text: '30 s'),
+              Tab(text: '60 s'),
+              Tab(text: '90 s'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _buildRecordsSection(
+                  title: 'Rekordy 30 s',
+                  message: 'Brak rekordów dla trybu 30 sekund.',
+                ),
+                _buildRecordsSection(
+                  title: 'Rekordy 60 s',
+                  message: 'Brak rekordów dla trybu 60 sekund.',
+                ),
+                _buildRecordsSection(
+                  title: 'Rekordy 90 s',
+                  message: 'Brak rekordów dla trybu 90 sekund.',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecordsSection({required String title, required String message}) {
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: [
+        Text(
+          title,
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 18),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
