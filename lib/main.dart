@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'dart:math';
+import 'dart:async';
 
 void main() {
   runApp(CoNiePasujeApp());
 
-  doWhenWindowReady(() { // zmiana rozmiaru okna
+  doWhenWindowReady(() {
     final initialSize = Size(600, 800);
     appWindow.minSize = Size(600, 800);
     appWindow.size = initialSize;
     appWindow.alignment = Alignment.center;
     appWindow.show();
-  }
-  );
+  });
 }
 
 class CoNiePasujeApp extends StatelessWidget {
@@ -44,11 +44,11 @@ class HomePage extends StatelessWidget {
       ),
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [const Color.fromARGB(255, 128, 185, 233), const Color.fromARGB(255, 154, 66, 170)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight
+          gradient: LinearGradient(colors: [Color.fromARGB(255, 128, 185, 233), Color.fromARGB(255, 154, 66, 170)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
-      ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -64,15 +64,15 @@ class HomePage extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(_createRoute());
                 },
-                
-                child: Text('Tryb Klasyczny'),
+                child: Text('Tryb Nieskończony'),
               ),
               SizedBox(height: 10),
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => TimeSelectionScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => TimeSelectionScreen()),
                   );
                 },
                 child: Text('Tryb Czasowy'),
@@ -84,6 +84,7 @@ class HomePage extends StatelessWidget {
     );
   }
 }
+
 Route _createRoute() {
   return PageRouteBuilder(
     pageBuilder: (context, animation, secondaryAnimation) => GamePage(),
@@ -107,7 +108,9 @@ Route _createRoute() {
 }
 
 class GamePage extends StatefulWidget {
-  const GamePage({super.key});
+  final int? timeLimit; // Opcjonalny limit czasu
+
+  const GamePage({Key? key, this.timeLimit}) : super(key: key);
 
   @override
   _GamePageState createState() => _GamePageState();
@@ -118,6 +121,9 @@ class _GamePageState extends State<GamePage> {
   String feedbackMessage = '';
   Color feedbackColor = Colors.green;
   IconData feedbackIcon = Icons.check; // Ikona domyślna dla poprawnej odpowiedzi
+  int? _timeLeft;
+  Timer? _timer;
+  int _score = 0; // Zmienna do liczenia punktów
 
   final Random _random = Random();
 
@@ -245,41 +251,35 @@ class _GamePageState extends State<GamePage> {
   late List<String> options;
   late int correctIndex;
 
-  @override
-  void initState() {
-    super.initState();
-    _generateNewQuestion();
-  }
-
+  // Generowanie nowego pytania
   void _generateNewQuestion() {
-    // Losowanie kategorii pasujących
     List<String> categoryKeys = categories.keys.toList();
     String matchingCategory =
         categoryKeys[_random.nextInt(categoryKeys.length)];
 
-    // Losowanie kategorii niepasującej (upewnij się, że jest inna)
+    // Losowanie kategorii niepasującej
     String nonMatchingCategory;
     do {
       nonMatchingCategory =
           categoryKeys[_random.nextInt(categoryKeys.length)];
     } while (nonMatchingCategory == matchingCategory);
 
-    // Z kategorii pasujących losujemy 2 unikalne elementy
+    // Losowanie 2 unikalnych elementów z kategorii pasujących
     List<String> matchingItems = List.from(categories[matchingCategory]!);
     matchingItems.shuffle();
     List<String> selectedMatching = matchingItems.take(2).toList();
 
-    // Z kategorii niepasującej losujemy 1 element
+    // Losowanie 1 elementu z kategorii niepasującej
     List<String> nonMatchingItems = List.from(categories[nonMatchingCategory]!);
     nonMatchingItems.shuffle();
     String selectedNonMatching = nonMatchingItems.first;
 
-    // Łączymy odpowiedzi
+    // Łączenie opcji i tasowanie
     options = List.from(selectedMatching);
     options.add(selectedNonMatching);
     options.shuffle();
 
-    // Znajdujemy indeks elementu, który nie pasuje (pochodzi z nonMatchingCategory)
+    // Znajdowanie indeksu niepasującej opcji
     correctIndex = options.indexOf(selectedNonMatching);
   }
 
@@ -291,13 +291,14 @@ class _GamePageState extends State<GamePage> {
         feedbackMessage = 'Dobrze! 🎉';
         feedbackColor = Colors.green;
         feedbackIcon = Icons.check;
+        _score++; // ZWIĘKSZENIE LICZNIKA PUNKTÓW
       } else {
         feedbackMessage = 'Źle! Spróbuj ponownie.';
         feedbackColor = Colors.red;
         feedbackIcon = Icons.close;
       }
     });
-    // Ukryj komunikat po 1,5 sekundach
+
     Future.delayed(Duration(milliseconds: 1500), () {
       setState(() {
         showFeedback = false;
@@ -306,6 +307,56 @@ class _GamePageState extends State<GamePage> {
         _generateNewQuestion();
       }
     });
+  }
+
+
+  @override
+  void initState() {
+    super.initState();
+    _generateNewQuestion(); // Generujemy pierwsze pytanie
+    if (widget.timeLimit != null) {
+      _timeLeft = widget.timeLimit;
+      _startTimer();
+    }
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_timeLeft! > 0) {
+        setState(() {
+          _timeLeft = _timeLeft! - 1;
+        });
+      } else {
+        timer.cancel();
+        _onTimeUp();
+      }
+    });
+  }
+
+  void _onTimeUp() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Koniec czasu!'),
+        content: Text('Twój wynik: $_score'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Zamknięcie dialogu
+              Navigator.of(context).pop(); // Powrót do ekranu wyboru trybu
+            },
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -325,86 +376,107 @@ class _GamePageState extends State<GamePage> {
             end: Alignment.bottomRight,
           ),
         ),
-      child: Stack(
-        children: [
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Co nie pasuje?',
-                  style: TextStyle(fontSize: 22),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 20),
-                AnimatedSwitcher(
-                  duration: Duration(milliseconds: 500),
-                  transitionBuilder: (Widget child, Animation<double> animation) {
-                    return FadeTransition(opacity: animation, child: child);
-                  },
-                  child: Wrap(
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Co nie pasuje?',
+                    style: TextStyle(fontSize: 22, color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 20),
+                  if (widget.timeLimit != null)
+                    Text(
+                      'Pozostały czas: $_timeLeft s',
+                      style: TextStyle(
+                          fontSize: 24,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  SizedBox(height: 10),
+                    Text(
+                      'Punkty: $_score',
+                      style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  SizedBox(height: 20),
+                  AnimatedSwitcher(
+                    duration: Duration(milliseconds: 500),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: child,
+                      );
+                    },
                     key: ValueKey<int>(options.hashCode),
-                    alignment: WrapAlignment.center,
-                    spacing: 20,
-                    runSpacing: 10,
-                    children: List.generate(
-                      options.length,
-                      (index) {
-                        String imagePath = optionImages[options[index]] ??
-                            'assets/images/placeholder.png';
-                        return OptionButton(
-                          optionText: options[index],
-                          imageAsset: imagePath,
-                          onPressed: () => _checkAnswer(index),
-                        );
-                      },
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 20,
+                      runSpacing: 10,
+                      children: List.generate(
+                        options.length,
+                        (index) {
+                          String imagePath = optionImages[options[index]] ??
+                              'assets/images/placeholder.png';
+                          return OptionButton(
+                            optionText: options[index],
+                            imageAsset: imagePath,
+                            onPressed: () => _checkAnswer(index),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Komunikat informujący o wyniku
-          Positioned(
-            bottom: 50,
-            left: 0,
-            right: 0,
-            child: AnimatedOpacity(
-              opacity: showFeedback ? 1 : 0,
-              duration: Duration(milliseconds: 500),
-              child: Center(
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: feedbackColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        feedbackIcon,
-                        color: Colors.white,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        feedbackMessage,
-                        style: TextStyle(color: Colors.white, fontSize: 18),
-                      ),
-                    ],
+            // Komunikat informujący o wyniku
+            Positioned(
+              bottom: 50,
+              left: 0,
+              right: 0,
+              child: AnimatedOpacity(
+                opacity: showFeedback ? 1 : 0,
+                duration: Duration(milliseconds: 500),
+                child: Center(
+                  child: Container(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: feedbackColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          feedbackIcon,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          feedbackMessage,
+                          style:
+                              TextStyle(color: Colors.white, fontSize: 18),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      )
     );
   }
 }
 
-class OptionButton extends StatefulWidget {
+// Uproszczona wersja OptionButton – korzysta wyłącznie z ElevatedButton
+class OptionButton extends StatelessWidget {
   final String optionText;
   final String imageAsset;
   final VoidCallback onPressed;
@@ -417,66 +489,32 @@ class OptionButton extends StatefulWidget {
   });
 
   @override
-  _OptionButtonState createState() => _OptionButtonState();
-}
-
-class _OptionButtonState extends State<OptionButton> {
-  double _scale = 1.0;
-
-  void _onTapDown(TapDownDetails details) {
-    setState(() {
-      _scale = 0.95;
-    });
-  }
-
-  void _onTapUp(TapUpDetails details) {
-    setState(() {
-      _scale = 1.0;
-    });
-    widget.onPressed();
-  }
-
-  void _onTapCancel() {
-    setState(() {
-      _scale = 1.0;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
-      child: GestureDetector(
-        onTapDown: _onTapDown,
-        onTapUp: _onTapUp,
-        onTapCancel: _onTapCancel,
-        child: Transform.scale(
-          scale: _scale,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: 120, maxWidth: 160),
-            child: ElevatedButton(
-              onPressed: widget.onPressed,
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: EdgeInsets.all(10),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset(widget.imageAsset, height: 80, fit: BoxFit.contain),
-                  SizedBox(height: 10),
-                  Flexible(
-                    child: Text(
-                      widget.optionText,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ],
-              ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: 120, maxWidth: 160),
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
             ),
+            padding: EdgeInsets.all(10),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(imageAsset, height: 80, fit: BoxFit.contain),
+              SizedBox(height: 10),
+              Flexible(
+                child: Text(
+                  optionText,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -484,74 +522,112 @@ class _OptionButtonState extends State<OptionButton> {
   }
 }
 
-// Ekran wyboru czasu w trybie czasowym
 class TimeSelectionScreen extends StatefulWidget {
-  const TimeSelectionScreen({super.key});
-
   @override
   _TimeSelectionScreenState createState() => _TimeSelectionScreenState();
 }
 
 class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
-  double _selectedTime = 5; // Domyślnie 5 minut
+  int? _selectedTime; // Wybrany czas gry
+  int _countdown = 3; // Odliczanie przed startem
+  bool _isCountingDown = false;
+  Timer? _timer;
+
+  void _startCountdown() {
+    setState(() {
+      _isCountingDown = true;
+    });
+
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_countdown > 1) {
+        setState(() {
+          _countdown--;
+        });
+      } else {
+        timer.cancel();
+        _startGame();
+      }
+    });
+  }
+
+  void _startGame() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+          builder: (context) => GamePage(timeLimit: _selectedTime)),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Wybierz czas gry")),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            "Ilość minut: ${_selectedTime.toInt()}",
-            style: TextStyle(fontSize: 20),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Text('Tryb Czasowy'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blue.shade300, Colors.purple.shade500],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          Slider(
-            value: _selectedTime,
-            min: 1,
-            max: 30,
-            divisions: 29, // 1-minutowe skoki
-            label: "${_selectedTime.toInt()} min",
-            onChanged: (double value) {
-              setState(() {
-                _selectedTime = value;
-              });
-            },
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      TimedGameScreen(timeLimit: _selectedTime.toInt()),
+        ),
+        child: Center(
+          child: _isCountingDown
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _countdown > 0 ? '$_countdown' : 'Start!',
+                      style: TextStyle(
+                          fontSize: 64,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Wybierz czas gry:',
+                      style: TextStyle(fontSize: 24, color: Colors.white),
+                    ),
+                    SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildTimeButton(30),
+                        _buildTimeButton(60),
+                        _buildTimeButton(90),
+                      ],
+                    ),
+                  ],
                 ),
-              );
-            },
-            child: Text("Start"),
-          ),
-        ],
+        ),
       ),
     );
   }
-}
 
-// Ekran gry w trybie czasowym – tutaj możesz rozbudować logikę o licznik i punktację
-class TimedGameScreen extends StatelessWidget {
-  final int timeLimit;
-
-  const TimedGameScreen({super.key, required this.timeLimit});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Tryb Czasowy")),
-      body: Center(
-        child: Text(
-          "Masz $timeLimit minut na grę!",
-          style: TextStyle(fontSize: 24),
-        ),
+  Widget _buildTimeButton(int time) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 10),
+      child: ElevatedButton(
+        onPressed: () {
+          setState(() {
+            _selectedTime = time;
+          });
+          _startCountdown();
+        },
+        child: Text('$time s'),
       ),
     );
   }
