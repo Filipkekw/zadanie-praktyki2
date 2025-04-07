@@ -10,7 +10,7 @@
 
 ## 🎮 Tryby gry
 - Tryb Nieskończony - Brak ograniczeń czasowych oraz pomyłek
-- Tryb Czasowy - Ograniczenie czasowe wybrane spośród opcji, limit trzech żyć
+- Tryb Czasowy - Ograniczenie czasowe wybrane spośród opcji, mylisz się = koniec gry
 - Tryb Przetrwania - Brak ograniczenia czasowego, limit trzech żyć
 
 ## 🔧 Wymagania
