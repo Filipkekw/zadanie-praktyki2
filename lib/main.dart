@@ -1,3 +1,5 @@
+// ignore_for_file: library_private_types_in_public_api
+
 import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'dart:math';
@@ -401,7 +403,7 @@ class _GamePageState extends State<GamePage> {
   final Random _random = Random();
 
   final Map<String, List<String>> categories = {
-    'Fruits': [
+    'Owoce': [
       'Jabłko',
       'Banan',
       'Gruszka',
@@ -413,7 +415,7 @@ class _GamePageState extends State<GamePage> {
       'Ananas',
       'Cytryna'
     ],
-    'Vehicles': [
+    'Pojazdy': [
       'Samochód',
       'Rower',
       'Motocykl',
@@ -425,7 +427,7 @@ class _GamePageState extends State<GamePage> {
       'Skuter',
       'Ciężarówka'
     ],
-    'Animals': [
+    'Zwierzeta': [
       'Kot',
       'Pies',
       'Królik',
@@ -437,7 +439,7 @@ class _GamePageState extends State<GamePage> {
       'Małpa',
       'Niedźwiedź'
     ],
-    'Colors': [
+    'Kolory': [
       'Czerwony',
       'Niebieski',
       'Zielony',
@@ -449,7 +451,7 @@ class _GamePageState extends State<GamePage> {
       'Czarny',
       'Biały'
     ],
-    'Cartoon and Movie Characters': [
+    'Postacie z kreskowek': [
       'Myszka Miki',
       'Kubuś Puchatek',
       'Spider-Man',
@@ -460,6 +462,42 @@ class _GamePageState extends State<GamePage> {
       'Batman',
       'Świnka Peppa',
     ],
+    'Rzeczy w kuchni' : [
+      'Kubek',
+      'Garnek',
+      'Talerz',
+      'Patelnia',
+      'Czajnik',
+      'Miska',
+      'Dzbanek',
+      'Widelec',
+      'Łyżka',
+    ],
+    'Ubrania' : [
+      'Koszulka',
+      'Spodnie',
+      'Sukienka',
+      'Buty',
+      'Czapka',
+      'Sweter',
+      'Kurtka',
+      'Spódnica',
+      'Bluza',
+      'Szalik',
+    ],
+    'Przedmioty szkolne' : [
+      'Plecak',
+      'Zeszyt',
+      'Długopis',
+      'Ołówek',
+      'Linijka',
+      'Temperówka',
+      'Gumka',
+      'Teczka',
+      'Książka',
+      'Zakreślacz',
+    ],
+
   };
 
   final Map<String, String> optionImages = {
@@ -512,6 +550,36 @@ class _GamePageState extends State<GamePage> {
     'Scooby-Doo': 'assets/images/scooby.png',
     'Batman': 'assets/images/batman.png',
     'Świnka Peppa': 'assets/images/peppa.png',
+    'Zygzak Mcqueen': 'assets/images/zygzak.png',
+    'Kubek': 'assets/images/kubek.png',
+    'Garnek': 'assets/images/garnek.png',
+    'Talerz': 'assets/images/talerz.png',
+    'Patelnia': 'assets/images/patelnia.png',
+    'Czajnik': 'assets/images/czajnik.png',
+    'Miska': 'assets/images/miska.png',
+    'Dzbanek': 'assets/images/dzbanek.png',
+    'Widelec': 'assets/images/widelec.png',
+    'Łyżka': 'assets/images/lyzka.png',
+    'Plecak': 'assets/images/plecak.png',
+    'Zeszyt': 'assets/images/zeszyt.png',
+    'Długopis': 'assets/images/dlugopis.png',
+    'Ołówek': 'assets/images/olowek.png',
+    'Linijka': 'assets/images/linijka.png',
+    'Temperówka': 'assets/images/temperowka.png',
+    'Gumka': 'assets/images/gumka.png',
+    'Teczka': 'assets/images/teczka.png',
+    'Książka': 'assets/images/ksiazka.png',
+    'Zakreślacz': 'assets/images/zakreslacz.png',
+    'Koszulka': 'assets/images/koszulka.png',
+    'Spodnie': 'assets/images/spodnie.png',
+    'Sukienka': 'assets/images/sukienka.png',
+    'Buty': 'assets/images/buty.png',
+    'Czapka': 'assets/images/czapka.png',
+    'Sweter': 'assets/images/sweter.png',
+    'Kurtka': 'assets/images/kurtka.png',
+    'Spódnica': 'assets/images/spodnica.png',
+    'Bluza': 'assets/images/bluza.png',
+    'Szalik': 'assets/images/szalik.png',
   };
 
   late List<String> options;
