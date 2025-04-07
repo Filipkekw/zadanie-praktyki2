@@ -7,6 +7,7 @@
 - Wyświetlanie obrazków odpowiadających opcjom
 - Interfejs przyjazny dla dzieci
 - Informacja zwrotna o poprawnej lub błędnej odpowiedzi
+- Zapis rekordów dla trybu czasowego i trybu przetwania
 
 ## 🎮 Tryby gry
 - Tryb Nieskończony - Brak ograniczeń czasowych oraz pomyłek
