@@ -176,7 +176,7 @@ class HomePage extends StatelessWidget {
                     _createTimeSelectionRoute(),
                   );
                 },
-                child: Text('Tryb Czasowy'),
+                child: Text('Czasówka'),
               ),
               SizedBox(height: 10),
               ElevatedButton(
@@ -193,7 +193,7 @@ class HomePage extends StatelessWidget {
                     MaterialPageRoute(builder: (context) => RecordsPage()),
                   );
                 },
-                child: Text('Rekordy'),
+                child: Text('Rekordy🏆'),
               ),
             ],
           ),
@@ -252,14 +252,16 @@ class RecordsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2, // Główne zakładki: Tryb Czasowy i Tryb Survival
+      length: 2, // Główne zakładki: Tryb Presja czasu i Tryb przetrwania
       child: Scaffold(
+        backgroundColor: Color(0xFFBBDEFB),
         appBar: AppBar(
-          title: Text('Rekordy'),
+          title: Text('Rekordy🏆'),
+          backgroundColor: Color(0xFFBBDEFB),
           bottom: TabBar(
             tabs: [
-              Tab(text: 'Tryb Czasowy'),
-              Tab(text: 'Tryb Survival'),
+              Tab(text: 'Czasówka'),
+              Tab(text: 'Tryb Przetrwania'),
             ],
           ),
         ),
@@ -269,9 +271,9 @@ class RecordsPage extends StatelessWidget {
             TimeRecordsSection(),
             // Zakładka z rekordami dla trybu survival
             RecordsSection(
-              title: 'Rekordy trybu survival',
+              title: 'Rekordy trybu przetrwania',
               records: RecordsRepository.survivalRecords,
-              emptyMessage: 'Brak rekordów dla trybu survival.',
+              emptyMessage: 'Brak rekordów dla trybu przetrwania.',
             ),
           ],
         ),
@@ -920,7 +922,7 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('Tryb Czasowy'),
+        title: Text('Czasówka'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
