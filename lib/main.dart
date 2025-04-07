@@ -567,7 +567,8 @@ class _GamePageState extends State<GamePage> {
     }
   });
   
-  Future.delayed(Duration(milliseconds: 1500), () {
+  int delay = widget.timeLimit != null ? 500 : 1500;
+  Future.delayed(Duration(milliseconds: delay), () {
     setState(() {
       showFeedback = false;
       _questionAnswered = false;
@@ -581,7 +582,7 @@ class _GamePageState extends State<GamePage> {
           _generateNewQuestion();
         }
       } else {
-        _endGame();
+        _endGameWrongAnswer();
       }
     } else {
       // Jeśli odpowiedź poprawna, generujemy nowe pytanie
@@ -589,7 +590,35 @@ class _GamePageState extends State<GamePage> {
     }
   });
 }
-
+void _endGameWrongAnswer() {
+  _saveRecord();
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: Text('Przegrałeś!'),
+      content: Text('Odpowiedź jest błędna.\nTwój wynik: $_score'),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop(); // zamknięcie dialogu
+            Navigator.of(context).pop(); // powrót do ekranu wyboru trybu
+          },
+          child: Text('Powrót do menu'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop(); // zamknięcie dialogu
+            Navigator.of(context).pushReplacement(
+              _createRoute(timeLimit: widget.timeLimit, isSurvival: false),
+            );
+          },
+          child: Text('Spróbuj ponownie'),
+        ),
+      ],
+    ),
+  );
+}
 
   @override
   void initState() {
@@ -714,33 +743,51 @@ class _GamePageState extends State<GamePage> {
                     style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 20),
-                  AnimatedSwitcher(
-                    duration: Duration(milliseconds: 500),
-                    transitionBuilder: (Widget child, Animation<double> animation) {
-                      return FadeTransition(
-                        opacity: animation,
-                        child: child,
-                      );
-                    },
-                    key: ValueKey<int>(options.hashCode),
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 20,
-                      runSpacing: 10,
-                      children: List.generate(
-                        options.length,
-                        (index) {
-                          String imagePath = optionImages[options[index]] ??
-                              'assets/images/placeholder.png';
-                          return OptionButton(
-                            optionText: options[index],
-                            imageAsset: imagePath,
-                            onPressed: () => _checkAnswer(index),
+                  widget.timeLimit != null
+                    ? Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 20,
+                        runSpacing: 10,
+                        children: List.generate(
+                          options.length,
+                          (index) {
+                            String imagePath = optionImages[options[index]] ??
+                                'assets/images/placeholder.png';
+                            return OptionButton(
+                              optionText: options[index],
+                              imageAsset: imagePath,
+                              onPressed: () => _checkAnswer(index),
+                            );
+                          },
+                        ),
+                      )
+                    : AnimatedSwitcher(
+                        duration: Duration(milliseconds: 500),
+                        transitionBuilder: (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: child,
                           );
                         },
+                        key: ValueKey<int>(options.hashCode),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 20,
+                          runSpacing: 10,
+                          children: List.generate(
+                            options.length,
+                            (index) {
+                              String imagePath = optionImages[options[index]] ??
+                                  'assets/images/placeholder.png';
+                              return OptionButton(
+                                optionText: options[index],
+                                imageAsset: imagePath,
+                                onPressed: () => _checkAnswer(index),
+                              );
+                            },
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
                 ],
               ),
             ),
