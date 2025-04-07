@@ -379,7 +379,7 @@ class GamePage extends StatefulWidget {
   final int? timeLimit; // Opcjonalny limit czasu
   final bool isSurvival;
 
-  const GamePage({Key? key, this.timeLimit, required this.isSurvival}) : super(key: key);
+  const GamePage({super.key, this.timeLimit, required this.isSurvival});
 
   @override
   _GamePageState createState() => _GamePageState();
@@ -387,6 +387,7 @@ class GamePage extends StatefulWidget {
 
 class _GamePageState extends State<GamePage> {
   bool showFeedback = false;
+  bool _questionAnswered = false;
   String feedbackMessage = '';
   Color feedbackColor = Colors.green;
   IconData feedbackIcon = Icons.check;
@@ -545,40 +546,50 @@ class _GamePageState extends State<GamePage> {
   }
 
   void _checkAnswer(int index) {
-    bool isCorrect = index == correctIndex;
-    setState(() {
-      showFeedback = true;
-      if (isCorrect) {
-        feedbackMessage = 'Dobrze! 🎉';
-        feedbackColor = Colors.green;
-        feedbackIcon = Icons.check;
-        _score++;
-      } else {
-        feedbackMessage = 'Źle! Spróbuj ponownie.';
-        feedbackColor = Colors.red;
-        feedbackIcon = Icons.close;
-        if (widget.isSurvival || widget.timeLimit != null) {
-          _lives--;
-        }
+  if (_questionAnswered) return; // Zapobiegamy wielokrotnemu klikaniu
+  _questionAnswered = true;
+  
+  bool isCorrect = index == correctIndex;
+  setState(() {
+    showFeedback = true;
+    if (isCorrect) {
+      feedbackMessage = 'Dobrze! 🎉';
+      feedbackColor = Colors.green;
+      feedbackIcon = Icons.check;
+      _score++;
+    } else {
+      feedbackMessage = 'Źle! Spróbuj ponownie.';
+      feedbackColor = Colors.red;
+      feedbackIcon = Icons.close;
+      if (widget.isSurvival) {
+        _lives--;
       }
+    }
+  });
+  
+  Future.delayed(Duration(milliseconds: 1500), () {
+    setState(() {
+      showFeedback = false;
+      _questionAnswered = false;
     });
-    Future.delayed(Duration(milliseconds: 1500), () {
-      setState(() {
-        showFeedback = false;
-      });
-      if (widget.isSurvival || widget.timeLimit != null) {
+    if (!isCorrect) {
+      // W trybie czasowym (isSurvival == false) nie można się mylić – gra kończy się
+      if (widget.isSurvival) {
         if (_lives <= 0) {
           _endGame();
         } else {
           _generateNewQuestion();
         }
       } else {
-        if (isCorrect) {
-          _generateNewQuestion();
-        }
+        _endGame();
       }
-    });
-  }
+    } else {
+      // Jeśli odpowiedź poprawna, generujemy nowe pytanie
+      _generateNewQuestion();
+    }
+  });
+}
+
 
   @override
   void initState() {
@@ -677,7 +688,7 @@ class _GamePageState extends State<GamePage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (widget.isSurvival || widget.timeLimit != null)
+                  if (widget.isSurvival)
                     Text(
                       'Życia: $_lives ❤️',
                       style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
@@ -816,6 +827,8 @@ class OptionButton extends StatelessWidget {
 }
 
 class TimeSelectionScreen extends StatefulWidget {
+  const TimeSelectionScreen({super.key});
+
   @override
   _TimeSelectionScreenState createState() => _TimeSelectionScreenState();
 }
@@ -845,7 +858,7 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
 
   void _startGame() {
     Navigator.of(context).pushReplacement(
-      _createRoute(timeLimit: _selectedTime, isSurvival: true),
+      _createRoute(timeLimit: _selectedTime, isSurvival: false),
     );
   }
 
