@@ -918,6 +918,7 @@ class OptionButton extends StatelessWidget {
         child: ElevatedButton(
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
+            minimumSize: Size(100, 100),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
