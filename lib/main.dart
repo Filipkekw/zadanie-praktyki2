@@ -56,7 +56,6 @@ class RecordsRepository {
   }
 }
 
-
 class RecordsStorage {
   static const String _fileName = "records.json";
 
@@ -105,10 +104,10 @@ class RecordsStorage {
   }
 }
 
-  void main() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    await RecordsRepository.loadRecords();
-    runApp(CoNiePasujeApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await RecordsRepository.loadRecords();
+  runApp(CoNiePasujeApp());
 
   doWhenWindowReady(() {
     final initialSize = Size(600, 800);
@@ -246,7 +245,6 @@ Route _createTimeSelectionRoute() {
     },
   );
 }
-
 
 class RecordsPage extends StatelessWidget {
   const RecordsPage({super.key});
@@ -389,7 +387,7 @@ class GamePage extends StatefulWidget {
   _GamePageState createState() => _GamePageState();
 }
 
-class _GamePageState extends State<GamePage> {
+class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   bool showFeedback = false;
   bool _questionAnswered = false;
   String feedbackMessage = '';
@@ -401,6 +399,12 @@ class _GamePageState extends State<GamePage> {
   int _lives = 3;
 
   final Random _random = Random();
+
+  // Animacje
+  late AnimationController _feedbackAnimationController;
+  late Animation<double> _feedbackScaleAnimation;
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
 
   final Map<String, List<String>> categories = {
     'Owoce': [
@@ -451,7 +455,7 @@ class _GamePageState extends State<GamePage> {
       'Czarny',
       'Biały'
     ],
-    'Postacie z kreskowek': [
+    'Postacie z kreskówek': [
       'Myszka Miki',
       'Kubuś Puchatek',
       'Spider-Man',
@@ -462,7 +466,7 @@ class _GamePageState extends State<GamePage> {
       'Batman',
       'Świnka Peppa',
     ],
-    'Rzeczy w kuchni' : [
+    'Rzeczy w kuchni': [
       'Kubek',
       'Garnek',
       'Talerz',
@@ -473,7 +477,7 @@ class _GamePageState extends State<GamePage> {
       'Widelec',
       'Łyżka',
     ],
-    'Ubrania' : [
+    'Ubrania': [
       'Koszulka',
       'Spodnie',
       'Sukienka',
@@ -485,7 +489,7 @@ class _GamePageState extends State<GamePage> {
       'Bluza',
       'Szalik',
     ],
-    'Przedmioty szkolne' : [
+    'Przedmioty szkolne': [
       'Plecak',
       'Zeszyt',
       'Długopis',
@@ -497,6 +501,29 @@ class _GamePageState extends State<GamePage> {
       'Książka',
       'Zakreślacz',
     ],
+    'Warzywa': [
+      'Marchewka',
+      'Ogórek',
+      'Pomidor',
+      'Ziemniak',
+      'Sałata',
+      'Cebula',
+      'Brokuł',
+      'Kalafior',
+      'Papryka',
+      'Burak',
+    ],
+    'Budynki': [
+      'Zamek',
+      'Wieża Eiffla',
+      'Piramida',
+      'Most',
+      'Latarnia morska',
+      'Kościół',
+      'Wieżowiec',
+      'Stadion',
+      'Młyn',
+],
 
   };
 
@@ -580,6 +607,26 @@ class _GamePageState extends State<GamePage> {
     'Spódnica': 'assets/images/spodnica.png',
     'Bluza': 'assets/images/bluza.png',
     'Szalik': 'assets/images/szalik.png',
+    'Marchewka': 'assets/images/marchewka.png',
+    'Ogórek': 'assets/images/ogorek.png',
+    'Pomidor': 'assets/images/pomidor.png',
+    'Ziemniak': 'assets/images/ziemniak.png',
+    'Sałata': 'assets/images/salata.png',
+    'Cebula': 'assets/images/cebula.png',
+    'Brokuł': 'assets/images/brokul.png',
+    'Kalafior': 'assets/images/kalafior.png',
+    'Papryka': 'assets/images/papryka.png',
+    'Burak': 'assets/images/burak.png',
+    'Zamek': 'assets/images/zamek.png',
+    'Wieża Eiffla': 'assets/images/wieza.png',
+    'Piramida': 'assets/images/piramida.png',
+    'Most': 'assets/images/most.png',
+    'Latarnia morska': 'assets/images/latarnia.png',
+    'Kościół': 'assets/images/kosciol.png',
+    'Wieżowiec': 'assets/images/wiezowiec.png',
+    'Stadion': 'assets/images/stadion.png',
+    'Młyn': 'assets/images/mlyn.png',
+
   };
 
   late List<String> options;
@@ -616,79 +663,84 @@ class _GamePageState extends State<GamePage> {
   }
 
   void _checkAnswer(int index) {
-  if (_questionAnswered) return; // Zapobiegamy wielokrotnemu klikaniu
-  _questionAnswered = true;
-  
-  bool isCorrect = index == correctIndex;
-  setState(() {
-    showFeedback = true;
-    if (isCorrect) {
-      feedbackMessage = 'Dobrze! 🎉';
-      feedbackColor = Colors.green;
-      feedbackIcon = Icons.check;
-      _score++;
-    } else {
-      feedbackMessage = 'Źle! Spróbuj ponownie.';
-      feedbackColor = Colors.red;
-      feedbackIcon = Icons.close;
-      if (widget.isSurvival) {
-        _lives--;
-      }
-    }
-  });
-  
-  int delay = widget.timeLimit != null ? 500 : 1500;
-  Future.delayed(Duration(milliseconds: delay), () {
+    if (_questionAnswered) return; // Zapobiegamy wielokrotnemu klikaniu
+    _questionAnswered = true;
+
+    bool isCorrect = index == correctIndex;
     setState(() {
-      showFeedback = false;
-      _questionAnswered = false;
+      showFeedback = true;
+      if (isCorrect) {
+        feedbackMessage = 'Dobrze! 🎉';
+        feedbackColor = Colors.green;
+        feedbackIcon = Icons.check;
+        _score++;
+        // Rozpoczęcie animacji powiększenia przy poprawnej odpowiedzi:
+        _feedbackAnimationController.forward(from: 0);
+      } else {
+        feedbackMessage = 'Źle! Spróbuj ponownie.';
+        feedbackColor = Colors.red;
+        feedbackIcon = Icons.close;
+        if (widget.isSurvival) {
+          _lives--;
+        }
+        // Rozpoczęcie animacji trzęsienia przy błędnej odpowiedzi:
+        _shakeController.forward(from: 0);
+      }
     });
-    if (!isCorrect) {
-      // W trybie czasowym (isSurvival == false) nie można się mylić – gra kończy się
-      if (widget.isSurvival) {
-        if (_lives <= 0) {
-          _endGame();
+
+    int delay = widget.timeLimit != null ? 500 : 1500;
+    Future.delayed(Duration(milliseconds: delay), () {
+      setState(() {
+        showFeedback = false;
+        _questionAnswered = false;
+      });
+      if (!isCorrect) {
+        // W trybie czasowym (isSurvival == false) nie można się mylić – gra kończy się
+        if (widget.isSurvival) {
+          if (_lives <= 0) {
+            _endGame();
+          } else {
+            _generateNewQuestion();
+          }
         } else {
-          _generateNewQuestion();
+          _endGameWrongAnswer();
         }
       } else {
-        _endGameWrongAnswer();
+        // Jeśli odpowiedź poprawna, generujemy nowe pytanie
+        _generateNewQuestion();
       }
-    } else {
-      // Jeśli odpowiedź poprawna, generujemy nowe pytanie
-      _generateNewQuestion();
-    }
-  });
-}
-void _endGameWrongAnswer() {
-  _saveRecord();
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      title: Text('Przegrałeś!'),
-      content: Text('Odpowiedź jest błędna.\nTwój wynik: $_score'),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop(); // zamknięcie dialogu
-            Navigator.of(context).pop(); // powrót do ekranu wyboru trybu
-          },
-          child: Text('Powrót do menu'),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop(); // zamknięcie dialogu
-            Navigator.of(context).pushReplacement(
-              _createRoute(timeLimit: widget.timeLimit, isSurvival: false),
-            );
-          },
-          child: Text('Spróbuj ponownie'),
-        ),
-      ],
-    ),
-  );
-}
+    });
+  }
+
+  void _endGameWrongAnswer() {
+    _saveRecord();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Przegrałeś!'),
+        content: Text('Odpowiedź jest błędna.\nTwój wynik: $_score'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // zamknięcie dialogu
+              Navigator.of(context).pop(); // powrót do ekranu wyboru trybu
+            },
+            child: Text('Powrót do menu'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // zamknięcie dialogu
+              Navigator.of(context).pushReplacement(
+                _createRoute(timeLimit: widget.timeLimit, isSurvival: false),
+              );
+            },
+            child: Text('Spróbuj ponownie'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -701,6 +753,40 @@ void _endGameWrongAnswer() {
     if (!widget.isSurvival) {
       _lives = -1;
     }
+
+    // Inicjalizacja kontrolera animacji dla skalowania feedbacku
+    _feedbackAnimationController = AnimationController(
+      duration: Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _feedbackScaleAnimation = Tween<double>(begin: 1.0, end: 1.2)
+        .chain(CurveTween(curve: Curves.easeOut))
+        .animate(_feedbackAnimationController);
+    _feedbackAnimationController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _feedbackAnimationController.reverse();
+      }
+    });
+
+    // Inicjalizacja kontrolera animacji dla efektu trzęsienia
+    _shakeController = AnimationController(
+      duration: Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+          tween: Tween<double>(begin: 0, end: -10)
+              .chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 1),
+      TweenSequenceItem(
+          tween: Tween<double>(begin: -10, end: 10)
+              .chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 2),
+      TweenSequenceItem(
+          tween: Tween<double>(begin: 10, end: 0)
+              .chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 1),
+    ]).animate(_shakeController);
   }
 
   void _startTimer() {
@@ -737,12 +823,6 @@ void _endGameWrongAnswer() {
     );
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
   void _endGame() {
     _saveRecord();
     showDialog(
@@ -765,7 +845,62 @@ void _endGameWrongAnswer() {
   }
 
   @override
+  void dispose() {
+    _timer?.cancel();
+    _feedbackAnimationController.dispose();
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Tworzymy widget opcji do wyświetlania
+    Widget optionsWidget = widget.timeLimit != null
+        ? Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 20,
+            runSpacing: 10,
+            children: List.generate(
+              options.length,
+              (index) {
+                String imagePath = optionImages[options[index]] ??
+                    'assets/images/placeholder.png';
+                return OptionButton(
+                  optionText: options[index],
+                  imageAsset: imagePath,
+                  onPressed: () => _checkAnswer(index),
+                );
+              },
+            ),
+          )
+        : AnimatedSwitcher(
+            duration: Duration(milliseconds: 500),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+            key: ValueKey<int>(options.hashCode),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 20,
+              runSpacing: 10,
+              children: List.generate(
+                options.length,
+                (index) {
+                  String imagePath = optionImages[options[index]] ??
+                      'assets/images/placeholder.png';
+                  return OptionButton(
+                    optionText: options[index],
+                    imageAsset: imagePath,
+                    onPressed: () => _checkAnswer(index),
+                  );
+                },
+              ),
+            ),
+          );
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -813,51 +948,17 @@ void _endGameWrongAnswer() {
                     style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 20),
-                  widget.timeLimit != null
-                    ? Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: 20,
-                        runSpacing: 10,
-                        children: List.generate(
-                          options.length,
-                          (index) {
-                            String imagePath = optionImages[options[index]] ??
-                                'assets/images/placeholder.png';
-                            return OptionButton(
-                              optionText: options[index],
-                              imageAsset: imagePath,
-                              onPressed: () => _checkAnswer(index),
-                            );
-                          },
-                        ),
-                      )
-                    : AnimatedSwitcher(
-                        duration: Duration(milliseconds: 500),
-                        transitionBuilder: (Widget child, Animation<double> animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: child,
-                          );
-                        },
-                        key: ValueKey<int>(options.hashCode),
-                        child: Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 20,
-                          runSpacing: 10,
-                          children: List.generate(
-                            options.length,
-                            (index) {
-                              String imagePath = optionImages[options[index]] ??
-                                  'assets/images/placeholder.png';
-                              return OptionButton(
-                                optionText: options[index],
-                                imageAsset: imagePath,
-                                onPressed: () => _checkAnswer(index),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
+                  // Używamy AnimatedBuilder do efektu trzęsienia przycisków
+                  AnimatedBuilder(
+                    animation: _shakeController,
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: Offset(_shakeAnimation.value, 0),
+                        child: child,
+                      );
+                    },
+                    child: optionsWidget,
+                  ),
                 ],
               ),
             ),
@@ -869,22 +970,26 @@ void _endGameWrongAnswer() {
                 opacity: showFeedback ? 1 : 0,
                 duration: Duration(milliseconds: 500),
                 child: Center(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: feedbackColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(feedbackIcon, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text(
-                          feedbackMessage,
-                          style: TextStyle(color: Colors.white, fontSize: 18),
-                        ),
-                      ],
+                  // Opakowujemy feedback w ScaleTransition do efektu skalowania
+                  child: ScaleTransition(
+                    scale: _feedbackScaleAnimation,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: feedbackColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(feedbackIcon, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            feedbackMessage,
+                            style: TextStyle(color: Colors.white, fontSize: 18),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
