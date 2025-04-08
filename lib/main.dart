@@ -523,8 +523,17 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
       'Wieżowiec',
       'Stadion',
       'Młyn',
-],
-
+    ],
+    'Napoje': [
+      'Woda',
+      'Sok',
+      'Herbata',
+      'Mleko',
+      'Cola',
+      'Kawa',
+      'Fanta',
+      'Lemoniada',
+    ],
   };
 
   final Map<String, String> optionImages = {
@@ -626,7 +635,14 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     'Wieżowiec': 'assets/images/wiezowiec.png',
     'Stadion': 'assets/images/stadion.png',
     'Młyn': 'assets/images/mlyn.png',
-
+    'Woda': 'assets/images/woda.png',
+    'Sok': 'assets/images/sok.png',
+    'Herbata': 'assets/images/herbata.png',
+    'Mleko': 'assets/images/mleko.png',
+    'Cola': 'assets/images/cola.png',
+    'Kawa': 'assets/images/kawa.png',
+    'Fanta': 'assets/images/fanta.png',
+    'Lemoniada': 'assets/images/lemoniada.png',
   };
 
   late List<String> options;
@@ -1057,7 +1073,7 @@ class TimeSelectionScreen extends StatefulWidget {
 }
 
 class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
-  int? _selectedTime;
+  int _currentTime = 30; // Domyślnie 30 sekund.
   int _countdown = 3;
   bool _isCountingDown = false;
   Timer? _timer;
@@ -1081,7 +1097,7 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
 
   void _startGame() {
     Navigator.of(context).pushReplacement(
-      _createRoute(timeLimit: _selectedTime, isSurvival: false),
+      _createRoute(timeLimit: _currentTime, isSurvival: false),
     );
   }
 
@@ -1090,7 +1106,7 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
     _timer?.cancel();
     super.dispose();
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1122,9 +1138,9 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
                         _countdown > 0 ? '$_countdown' : 'Start!',
                         key: ValueKey<int>(_countdown),
                         style: TextStyle(
-                            fontSize: 64,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white),
+                          fontSize: 64,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
                       ),
                     ),
                   ],
@@ -1137,32 +1153,28 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
                       style: TextStyle(fontSize: 24, color: Colors.white),
                     ),
                     SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildTimeButton(30),
-                        _buildTimeButton(60),
-                        _buildTimeButton(90),
-                      ],
+                    Text('Czas: $_currentTime s', style: TextStyle(fontSize: 24, color: Colors.white)),
+                    SizedBox(height: 20),
+                    Slider(
+                      value: _currentTime.toDouble(),
+                      min: 15,
+                      max: 120,
+                      divisions: 7, // Skoki co 15 sekund (15, 30, 45, ... 120)
+                      label: '$_currentTime s',
+                      onChanged: (double value) {
+                        setState(() {
+                          _currentTime = value.toInt();
+                        });
+                      },
+                    ),
+                    SizedBox(height: 40),
+                    ElevatedButton(
+                      onPressed: _startCountdown,
+                      child: Text('Rozpocznij grę'),
                     ),
                   ],
                 ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTimeButton(int time) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 10),
-      child: ElevatedButton(
-        onPressed: () {
-          setState(() {
-            _selectedTime = time;
-          });
-          _startCountdown();
-        },
-        child: Text('$time s'),
       ),
     );
   }
