@@ -443,8 +443,30 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   // Zmienne dla dodatkowego timera w trybie przetrwania
   int _survivalTimeLeft = 0;
   Timer? _survivalTimer;
-  static const int survivalTimeTriggerScore = 25; // próg, po którym uruchamiamy timer
-  static const int survivalTimeLimit = 20; // limit czasu w sekundach
+
+  // Mapowanie progu punktowego na limit czasu (w sekundach)
+  final Map<int, int> survivalThresholds = {
+    25: 20,  // przy 25 punktach -> 20 sekund
+    50: 15,  // przy 50 punktach -> 15 sekund
+    75: 10,  // przy 75 punktach -> 10 sekund
+    100: 5,  // przy 100 punktach -> 5 sekund
+  };
+
+  // Metoda wybiera limit czasu na podstawie aktualnego wyniku.
+  // Iterujemy po progach posortowanych rosnąco – gdy _score jest większy lub równy progowi,
+  // przypisujemy nowy limit. Dzięki temu dla wyniku np. 60 otrzymamy limit 15 sekund.
+  int getCurrentSurvivalTimeLimit() {
+    int limit = 0;
+    var keys = survivalThresholds.keys.toList()..sort();
+    for (var threshold in keys) {
+      if (_score >= threshold) {
+        limit = survivalThresholds[threshold]!;
+      } else {
+        break;
+      }
+    }
+    return limit;
+  }
 
   final Random _random = Random();
 
@@ -697,16 +719,14 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   late int correctIndex;
 
   void _generateNewQuestion() {
-    // Przed generowaniem nowego pytania anulujemy ewentualny aktywny timer przetrwania
+    // Anulujemy ewentualny wcześniejszy timer przetrwania
     _cancelSurvivalTimer();
 
     List<String> categoryKeys = categories.keys.toList();
-    String matchingCategory =
-        categoryKeys[_random.nextInt(categoryKeys.length)];
+    String matchingCategory = categoryKeys[_random.nextInt(categoryKeys.length)];
     String nonMatchingCategory;
     do {
-      nonMatchingCategory =
-          categoryKeys[_random.nextInt(categoryKeys.length)];
+      nonMatchingCategory = categoryKeys[_random.nextInt(categoryKeys.length)];
     } while (nonMatchingCategory == matchingCategory);
     List<String> matchingItems = List.from(categories[matchingCategory]!);
     matchingItems.shuffle();
@@ -719,17 +739,17 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     options.shuffle();
     correctIndex = options.indexOf(selectedNonMatching);
 
-    // Jeśli gramy w trybie przetrwania i osiągnięto próg punktowy, uruchamiamy timer 20-sekundowy
-    if (widget.isSurvival && _score >= survivalTimeTriggerScore) {
-      _startSurvivalTimer();
+    // Jeśli gramy w trybie przetrwania i przekroczono próg punktowy, uruchamiamy timer
+    int currentTimeLimit = getCurrentSurvivalTimeLimit();
+    if (widget.isSurvival && currentTimeLimit > 0) {
+      _startSurvivalTimer(currentTimeLimit);
     }
   }
 
-  void _startSurvivalTimer() {
-    // Upewnij się, że poprzedni timer został anulowany
+  void _startSurvivalTimer(int timeLimit) {
     _cancelSurvivalTimer();
     setState(() {
-      _survivalTimeLeft = survivalTimeLimit;
+      _survivalTimeLeft = timeLimit;
     });
     _survivalTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (_survivalTimeLeft > 0) {
@@ -738,7 +758,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
         });
       } else {
         _cancelSurvivalTimer();
-        _endGame();
+        _endGame(reason: 'time');
       }
     });
   }
@@ -750,7 +770,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     }
   }
 
-  // Metoda zapisująca rekord w zależności od trybu
   void _saveRecord() {
     if (widget.isSurvival) {
       RecordsRepository.addSurvivalRecord(_score);
@@ -760,7 +779,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   }
 
   void _checkAnswer(int index) {
-    if (_questionAnswered) return; // Zapobiegamy wielokrotnemu klikaniu
+    if (_questionAnswered) return;
     _questionAnswered = true;
 
     bool isCorrect = index == correctIndex;
@@ -792,7 +811,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
       if (!isCorrect) {
         if (widget.isSurvival) {
           if (_lives <= 0) {
-            _endGame();
+            _endGame(reason: 'lives');
           } else {
             _generateNewQuestion();
           }
@@ -816,8 +835,8 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop(); // zamknięcie dialogu
-              Navigator.of(context).pop(); // powrót do ekranu wyboru trybu
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
             },
             child: Text('Powrót do menu'),
           ),
@@ -835,17 +854,23 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     );
   }
 
-  void _endGame() {
+  // Dodajemy parametr reason, by rozróżnić komunikaty końcowe
+  void _endGame({String reason = 'lives'}) {
     _saveRecord();
-    // Anulujemy timer przetrwania, jeśli jest aktywny
     _cancelSurvivalTimer();
+    String message;
+    if (reason == 'time') {
+      message = 'Czas minął!\nTwój wynik: $_score punktów';
+    } else {
+      message = 'Nie masz już więcej żyć!\nTwój wynik: $_score punktów';
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text('Koniec gry!'),
-        content: Text(
-            'Twój wynik: $_score punktów\n${widget.isSurvival ? 'Nie masz już więcej żyć lub czas się skończył!' : 'Czas minął!'}'),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () {
@@ -901,7 +926,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
           weight: 1),
     ]).animate(_shakeController);
   }
-  
+
   void _startTimer() {
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (_timeLeft! > 0) {
@@ -914,6 +939,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
       }
     });
   }
+
   void _onTimeUp() {
     _saveRecord();
     showDialog(
@@ -925,8 +951,8 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop(); // Zamknięcie dialogu
-              Navigator.of(context).pop(); // Powrót do ekranu wyboru trybu
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
             },
             child: Text('OK'),
           ),
@@ -934,7 +960,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
       ),
     );
   }
-
 
   @override
   void dispose() {
@@ -947,7 +972,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    // Widget opcji pozostaje bez zmian
     Widget optionsWidget = widget.timeLimit != null
         ? Wrap(
             alignment: WrapAlignment.center,
@@ -956,8 +980,8 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
             children: List.generate(
               options.length,
               (index) {
-                String imagePath = optionImages[options[index]] ??
-                    'assets/images/placeholder.png';
+                String imagePath =
+                    optionImages[options[index]] ?? 'assets/images/placeholder.png';
                 return OptionButton(
                   optionText: options[index],
                   imageAsset: imagePath,
@@ -982,8 +1006,8 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
               children: List.generate(
                 options.length,
                 (index) {
-                  String imagePath = optionImages[options[index]] ??
-                      'assets/images/placeholder.png';
+                  String imagePath =
+                      optionImages[options[index]] ?? 'assets/images/placeholder.png';
                   return OptionButton(
                     optionText: options[index],
                     imageAsset: imagePath,
@@ -1018,21 +1042,14 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
                   if (widget.isSurvival) ...[
                     Text(
                       'Życia: $_lives ❤️',
-                      style: TextStyle(
-                          fontSize: 24,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
                     ),
-                    // Wyświetlamy timer przetrwania, jeżeli został uruchomiony
                     if (_survivalTimer != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: Text(
                           'Pozostały czas: $_survivalTimeLeft s',
-                          style: TextStyle(
-                              fontSize: 20,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                       ),
                   ],
@@ -1046,10 +1063,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
                   if (widget.timeLimit != null)
                     Text(
                       'Pozostały czas: $_timeLeft s',
-                      style: TextStyle(
-                          fontSize: 24,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   SizedBox(height: 10),
                   Text(
