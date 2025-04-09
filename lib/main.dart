@@ -440,6 +440,12 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   int _score = 0;
   int _lives = 3;
 
+  // Zmienne dla dodatkowego timera w trybie przetrwania
+  int _survivalTimeLeft = 0;
+  Timer? _survivalTimer;
+  static const int survivalTimeTriggerScore = 25; // próg, po którym uruchamiamy timer
+  static const int survivalTimeLimit = 20; // limit czasu w sekundach
+
   final Random _random = Random();
 
   // Animacje
@@ -691,6 +697,9 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   late int correctIndex;
 
   void _generateNewQuestion() {
+    // Przed generowaniem nowego pytania anulujemy ewentualny aktywny timer przetrwania
+    _cancelSurvivalTimer();
+
     List<String> categoryKeys = categories.keys.toList();
     String matchingCategory =
         categoryKeys[_random.nextInt(categoryKeys.length)];
@@ -709,6 +718,36 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     options.add(selectedNonMatching);
     options.shuffle();
     correctIndex = options.indexOf(selectedNonMatching);
+
+    // Jeśli gramy w trybie przetrwania i osiągnięto próg punktowy, uruchamiamy timer 20-sekundowy
+    if (widget.isSurvival && _score >= survivalTimeTriggerScore) {
+      _startSurvivalTimer();
+    }
+  }
+
+  void _startSurvivalTimer() {
+    // Upewnij się, że poprzedni timer został anulowany
+    _cancelSurvivalTimer();
+    setState(() {
+      _survivalTimeLeft = survivalTimeLimit;
+    });
+    _survivalTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_survivalTimeLeft > 0) {
+        setState(() {
+          _survivalTimeLeft--;
+        });
+      } else {
+        _cancelSurvivalTimer();
+        _endGame();
+      }
+    });
+  }
+
+  void _cancelSurvivalTimer() {
+    if (_survivalTimer != null) {
+      _survivalTimer!.cancel();
+      _survivalTimer = null;
+    }
   }
 
   // Metoda zapisująca rekord w zależności od trybu
@@ -732,7 +771,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
         feedbackColor = Colors.green;
         feedbackIcon = Icons.check;
         _score++;
-        // Rozpoczęcie animacji powiększenia przy poprawnej odpowiedzi:
         _feedbackAnimationController.forward(from: 0);
       } else {
         feedbackMessage = 'Źle! Spróbuj ponownie.';
@@ -741,7 +779,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
         if (widget.isSurvival) {
           _lives--;
         }
-        // Rozpoczęcie animacji trzęsienia przy błędnej odpowiedzi:
         _shakeController.forward(from: 0);
       }
     });
@@ -753,7 +790,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
         _questionAnswered = false;
       });
       if (!isCorrect) {
-        // W trybie czasowym (isSurvival == false) nie można się mylić – gra kończy się
         if (widget.isSurvival) {
           if (_lives <= 0) {
             _endGame();
@@ -764,7 +800,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
           _endGameWrongAnswer();
         }
       } else {
-        // Jeśli odpowiedź poprawna, generujemy nowe pytanie
         _generateNewQuestion();
       }
     });
@@ -788,12 +823,36 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
           ),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop(); // zamknięcie dialogu
+              Navigator.of(context).pop();
               Navigator.of(context).pushReplacement(
                 _createRoute(timeLimit: widget.timeLimit, isSurvival: false),
               );
             },
             child: Text('Spróbuj ponownie'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _endGame() {
+    _saveRecord();
+    // Anulujemy timer przetrwania, jeśli jest aktywny
+    _cancelSurvivalTimer();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Koniec gry!'),
+        content: Text(
+            'Twój wynik: $_score punktów\n${widget.isSurvival ? 'Nie masz już więcej żyć lub czas się skończył!' : 'Czas minął!'}'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
+            },
+            child: Text('OK'),
           ),
         ],
       ),
@@ -811,8 +870,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     if (!widget.isSurvival) {
       _lives = -1;
     }
-
-    // Inicjalizacja kontrolera animacji dla skalowania feedbacku
     _feedbackAnimationController = AnimationController(
       duration: Duration(milliseconds: 300),
       vsync: this,
@@ -825,8 +882,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
         _feedbackAnimationController.reverse();
       }
     });
-
-    // Inicjalizacja kontrolera animacji dla efektu trzęsienia
     _shakeController = AnimationController(
       duration: Duration(milliseconds: 500),
       vsync: this,
@@ -846,7 +901,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
           weight: 1),
     ]).animate(_shakeController);
   }
-
+  
   void _startTimer() {
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (_timeLeft! > 0) {
@@ -859,7 +914,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
       }
     });
   }
-
   void _onTimeUp() {
     _saveRecord();
     showDialog(
@@ -881,30 +935,11 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     );
   }
 
-  void _endGame() {
-    _saveRecord();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('Koniec gry!'),
-        content: Text('Twój wynik: $_score punktów\n${widget.isSurvival ? 'Nie masz już więcej żyć!' : 'Czas minął!'}'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-            },
-            child: Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _survivalTimer?.cancel();
     _feedbackAnimationController.dispose();
     _shakeController.dispose();
     super.dispose();
@@ -912,7 +947,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    // Tworzymy widget opcji do wyświetlania
+    // Widget opcji pozostaje bez zmian
     Widget optionsWidget = widget.timeLimit != null
         ? Wrap(
             alignment: WrapAlignment.center,
@@ -980,11 +1015,27 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (widget.isSurvival)
+                  if (widget.isSurvival) ...[
                     Text(
                       'Życia: $_lives ❤️',
-                      style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 24,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
                     ),
+                    // Wyświetlamy timer przetrwania, jeżeli został uruchomiony
+                    if (_survivalTimer != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'Pozostały czas: $_survivalTimeLeft s',
+                          style: TextStyle(
+                              fontSize: 20,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                  ],
                   SizedBox(height: 20),
                   Text(
                     'Co nie pasuje?',
@@ -1006,7 +1057,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
                     style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 20),
-                  // Używamy AnimatedBuilder do efektu trzęsienia przycisków
                   AnimatedBuilder(
                     animation: _shakeController,
                     builder: (context, child) {
@@ -1028,7 +1078,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
                 opacity: showFeedback ? 1 : 0,
                 duration: Duration(milliseconds: 500),
                 child: Center(
-                  // Opakowujemy feedback w ScaleTransition do efektu skalowania
                   child: ScaleTransition(
                     scale: _feedbackScaleAnimation,
                     child: Container(
