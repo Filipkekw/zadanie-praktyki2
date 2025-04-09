@@ -11,11 +11,8 @@ import 'package:path_provider/path_provider.dart';
 // Klasa przechowująca rekordy
 class RecordsRepository {
   static List<int> survivalRecords = [];
-  static Map<int, List<int>> timedRecords = {
-    30: [],
-    60: [],
-    90: [],
-  };
+  // Zamiast domyślnych kluczy ustawiamy pustą mapę
+  static Map<int, List<int>> timedRecords = {};
 
   static final RecordsStorage _storage = RecordsStorage();
 
@@ -23,20 +20,16 @@ class RecordsRepository {
   static Future<void> loadRecords() async {
     Map<String, dynamic> data = await _storage.readRecords();
     survivalRecords = List<int>.from(data['survivalRecords'] ?? []);
+    
+    // Wczytujemy dynamiczne rekordy trybu czasowego
     Map<String, dynamic> timedData = data['timedRecords'] ?? {};
-    timedRecords[30] = List<int>.from(timedData['30'] ?? []);
-    timedRecords[60] = List<int>.from(timedData['60'] ?? []);
-    timedRecords[90] = List<int>.from(timedData['90'] ?? []);
+    timedData.forEach((key, value) {timedRecords[int.parse(key)] = List<int>.from(value);});
   }
 
   static Future<void> _saveToStorage() async {
     Map<String, dynamic> data = {
       'survivalRecords': survivalRecords,
-      'timedRecords': {
-        '30': timedRecords[30],
-        '60': timedRecords[60],
-        '90': timedRecords[90],
-      },
+      'timedRecords': timedRecords.map((key, value) => MapEntry(key.toString(), value)),
     };
     await _storage.writeRecords(data);
   }
@@ -48,11 +41,60 @@ class RecordsRepository {
   }
 
   static Future<void> addTimedRecord(int timeLimit, int score) async {
-    if (timedRecords.containsKey(timeLimit)) {
-      timedRecords[timeLimit]!.add(score);
-      timedRecords[timeLimit]!.sort((a, b) => b.compareTo(a));
-      await _saveToStorage();
+    // Jeżeli nie istnieje rekord dla danego formatu, tworzony jest nowy wpis
+    if (!timedRecords.containsKey(timeLimit)) {timedRecords[timeLimit] = [];}
+    timedRecords[timeLimit]!.add(score);
+    timedRecords[timeLimit]!.sort((a, b) => b.compareTo(a));
+    await _saveToStorage();
+  }
+}
+
+class DynamicTimeRecordsSection extends StatelessWidget {
+  const DynamicTimeRecordsSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Wybieramy tylko te formaty czasu, w których rozegrano grę (rekordy niepuste)
+    List<int> availableTimes = RecordsRepository.timedRecords.entries
+        .where((entry) => entry.value.isNotEmpty)
+        .map((entry) => entry.key)
+        .toList();
+    availableTimes.sort();
+
+    if (availableTimes.isEmpty) {
+      return Center(
+        child: Text(
+          'Brak rekordów dla trybu czasowego.',
+          style: TextStyle(fontSize: 18),
+        ),
+      );
     }
+
+    return DefaultTabController(
+      length: availableTimes.length,
+      child: Column(
+        children: [
+          TabBar(
+            labelColor: Theme.of(context).primaryColor,
+            unselectedLabelColor: Colors.grey,
+            tabs: availableTimes
+                .map((time) => Tab(text: '$time s'))
+                .toList(),
+          ),
+          Expanded(
+            child: TabBarView(
+              children: availableTimes.map((time) {
+                return RecordsSection(
+                  title: 'Rekordy $time s',
+                  records: RecordsRepository.timedRecords[time]!,
+                  emptyMessage: 'Brak rekordów dla trybu $time sekund.',
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -252,7 +294,7 @@ class RecordsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2, // Główne zakładki: Tryb Presja czasu i Tryb przetrwania
+      length: 2, // Główne zakładki: Czasówka i Tryb Przetrwania
       child: Scaffold(
         backgroundColor: Color(0xFFBBDEFB),
         appBar: AppBar(
@@ -267,8 +309,8 @@ class RecordsPage extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            // Zakładka dla trybu czasowego z podziałem na 30, 60 i 90 sekund
-            TimeRecordsSection(),
+            // Zmieniamy na dynamiczną wersję, która pokaże tylko rozegrane tryby
+            DynamicTimeRecordsSection(),
             // Zakładka z rekordami dla trybu survival
             RecordsSection(
               title: 'Rekordy trybu przetrwania',
