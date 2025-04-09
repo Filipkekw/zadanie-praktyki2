@@ -475,6 +475,8 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   late Animation<double> _feedbackScaleAnimation;
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
+  late AnimationController _progressController;
+  late Animation<double> _progressAnimation;
 
   final Map<String, List<String>> categories = {
     'Owoce': [
@@ -929,53 +931,77 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _generateNewQuestion();
-    if (widget.timeLimit != null) {
-      _timeLeft = widget.timeLimit;
-      _startTimer();
-    }
-    if (!widget.isSurvival) {
-      _lives = -1;
-    }
-    _feedbackAnimationController = AnimationController(
-      duration: Duration(milliseconds: 300),
+void initState() {
+  super.initState();
+  _generateNewQuestion();
+
+  if (widget.timeLimit != null) {
+    _timeLeft = widget.timeLimit;
+
+    _progressController = AnimationController(
       vsync: this,
-    );
-    _feedbackScaleAnimation = Tween<double>(begin: 1.0, end: 1.2)
-        .chain(CurveTween(curve: Curves.easeOut))
-        .animate(_feedbackAnimationController);
-    _feedbackAnimationController.addStatusListener((status) {
+      duration: Duration(seconds: widget.timeLimit!),
+    )..forward();
+
+    _progressAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(_progressController)
+      ..addListener(() {
+        setState(() {
+          _timeLeft = (widget.timeLimit! * _progressAnimation.value).ceil();
+        });
+      });
+
+    _progressController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        _feedbackAnimationController.reverse();
+        _onTimeUp();
       }
     });
-    _shakeController = AnimationController(
-      duration: Duration(milliseconds: 500),
-      vsync: this,
-    );
-    _shakeAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-          tween: Tween<double>(begin: 0, end: -10)
-              .chain(CurveTween(curve: Curves.easeInOut)),
-          weight: 1),
-      TweenSequenceItem(
-          tween: Tween<double>(begin: -10, end: 10)
-              .chain(CurveTween(curve: Curves.easeInOut)),
-          weight: 2),
-      TweenSequenceItem(
-          tween: Tween<double>(begin: 10, end: 0)
-              .chain(CurveTween(curve: Curves.easeInOut)),
-          weight: 1),
-    ]).animate(_shakeController);
   }
+
+  if (!widget.isSurvival) {
+    _lives = -1;
+  }
+
+  // Animacje odpowiedzi
+  _feedbackAnimationController = AnimationController(
+    duration: Duration(milliseconds: 300),
+    vsync: this,
+  );
+  _feedbackScaleAnimation = Tween<double>(begin: 1.0, end: 1.2)
+      .chain(CurveTween(curve: Curves.easeOut))
+      .animate(_feedbackAnimationController);
+  _feedbackAnimationController.addStatusListener((status) {
+    if (status == AnimationStatus.completed) {
+      _feedbackAnimationController.reverse();
+    }
+  });
+
+  _shakeController = AnimationController(
+    duration: Duration(milliseconds: 500),
+    vsync: this,
+  );
+  _shakeAnimation = TweenSequence<double>([
+    TweenSequenceItem(tween: Tween<double>(begin: 0, end: -10).chain(CurveTween(curve: Curves.easeInOut)), weight: 1),
+    TweenSequenceItem(tween: Tween<double>(begin: -10, end: 10).chain(CurveTween(curve: Curves.easeInOut)), weight: 2),
+    TweenSequenceItem(tween: Tween<double>(begin: 10, end: 0).chain(CurveTween(curve: Curves.easeInOut)), weight: 1),
+  ]).animate(_shakeController);
+}
 
   void _startTimer() {
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (_timeLeft! > 0) {
         setState(() {
-          _timeLeft = _timeLeft! - 1;
+          int newTimeLeft = _timeLeft! - 1;
+          double newProgress = newTimeLeft / widget.timeLimit!;
+          _progressAnimation = Tween<double>(
+            begin: _progressAnimation.value,
+            end: newProgress,
+          ).animate(CurvedAnimation(parent: _progressController, curve: Curves.easeOut));
+
+          _progressController.forward(from: 0);
+
+          setState(() {
+            _timeLeft = newTimeLeft;
+          });
         });
       } else {
         _timer?.cancel();
@@ -1011,6 +1037,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     _survivalTimer?.cancel();
     _feedbackAnimationController.dispose();
     _shakeController.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
@@ -1104,11 +1131,35 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 20),
-                  if (widget.timeLimit != null)
+                  if (widget.timeLimit != null) ...[
                     Text(
                       'Pozostały czas: $_timeLeft s',
-                      style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 24,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
                     ),
+                    // Dodany pasek postępu
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40.0, vertical: 10),
+                      child: AnimatedBuilder(
+                        animation: _progressAnimation,
+                        builder: (context, child) {
+                          return AnimatedBuilder(
+                            animation: _progressAnimation,
+                            builder: (context, child) {
+                              return LinearProgressIndicator(
+                                value: _progressAnimation.value,
+                                backgroundColor: Colors.white38,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.greenAccent),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                   SizedBox(height: 10),
                   Text(
                     'Punkty: $_score',
