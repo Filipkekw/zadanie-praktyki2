@@ -475,7 +475,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   late Animation<double> _feedbackScaleAnimation;
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
-  late AnimationController _progressController;
+  AnimationController? _progressController;
   late Animation<double> _progressAnimation;
 
   final Map<String, List<String>> categories = {
@@ -861,13 +861,18 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
           } else {
             _generateNewQuestion();
           }
-        } else {
+        } else if (widget.timeLimit != null) {
+          // Tryb czasowy – kończymy grę po błędnej odpowiedzi
           _endGameWrongAnswer();
+        } else {
+          // Tryb nieskończony – przy błędzie po prostu generujemy nowe pytanie
+          _generateNewQuestion();
         }
       } else {
         _generateNewQuestion();
       }
     });
+
   }
 
   void _endGameWrongAnswer() {
@@ -943,14 +948,14 @@ void initState() {
       duration: Duration(seconds: widget.timeLimit!),
     )..forward();
 
-    _progressAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(_progressController)
+    _progressAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(_progressController!)
       ..addListener(() {
         setState(() {
           _timeLeft = (widget.timeLimit! * _progressAnimation.value).ceil();
         });
       });
 
-    _progressController.addStatusListener((status) {
+    _progressController!.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         _onTimeUp();
       }
@@ -986,29 +991,6 @@ void initState() {
   ]).animate(_shakeController);
 }
 
-  void _startTimer() {
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      if (_timeLeft! > 0) {
-        setState(() {
-          int newTimeLeft = _timeLeft! - 1;
-          double newProgress = newTimeLeft / widget.timeLimit!;
-          _progressAnimation = Tween<double>(
-            begin: _progressAnimation.value,
-            end: newProgress,
-          ).animate(CurvedAnimation(parent: _progressController, curve: Curves.easeOut));
-
-          _progressController.forward(from: 0);
-
-          setState(() {
-            _timeLeft = newTimeLeft;
-          });
-        });
-      } else {
-        _timer?.cancel();
-        _onTimeUp();
-      }
-    });
-  }
 
   void _onTimeUp() {
     _saveRecord();
@@ -1037,7 +1019,9 @@ void initState() {
     _survivalTimer?.cancel();
     _feedbackAnimationController.dispose();
     _shakeController.dispose();
-    _progressController.dispose();
+    if (_progressController != null) {
+      _progressController!.dispose();
+    }
     super.dispose();
   }
 
