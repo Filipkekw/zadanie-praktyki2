@@ -154,6 +154,7 @@ void main() async {
   doWhenWindowReady(() {
     final initialSize = Size(600, 800);
     appWindow.minSize = Size(600, 800);
+    appWindow.title = "Co nie pasuje?";
     appWindow.size = initialSize;
     appWindow.alignment = Alignment.center;
     appWindow.show();
@@ -440,21 +441,21 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   int _score = 0;
   int _lives = 3;
 
-  // Zmienne dla dodatkowego timera w trybie przetrwania
+  // Zmienne dla trybu survival
   int _survivalTimeLeft = 0;
-  Timer? _survivalTimer;
+  Timer? _survivalTimer; // Pozostawiamy dla bezpieczeństwa – ale teraz głównie używamy kontrolera animacji
+  AnimationController? _survivalProgressController;
+  late Animation<double> _survivalProgressAnimation;
 
   // Mapowanie progu punktowego na limit czasu (w sekundach)
   final Map<int, int> survivalThresholds = {
-    25: 20,  // przy 25 punktach -> 20 sekund
+    2: 20,  // przy 2 punktach -> 20 sekund
     50: 15,  // przy 50 punktach -> 15 sekund
     75: 10,  // przy 75 punktach -> 10 sekund
     100: 5,  // przy 100 punktach -> 5 sekund
   };
 
   // Metoda wybiera limit czasu na podstawie aktualnego wyniku.
-  // Iterujemy po progach posortowanych rosnąco – gdy _score jest większy lub równy progowi,
-  // przypisujemy nowy limit. Dzięki temu dla wyniku np. 60 otrzymamy limit 15 sekund.
   int getCurrentSurvivalTimeLimit() {
     int limit = 0;
     var keys = survivalThresholds.keys.toList()..sort();
@@ -470,7 +471,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
 
   final Random _random = Random();
 
-  // Animacje
+  // Animacje odpowiedzi
   late AnimationController _feedbackAnimationController;
   late Animation<double> _feedbackScaleAnimation;
   late AnimationController _shakeController;
@@ -765,7 +766,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   late int correctIndex;
 
   void _generateNewQuestion() {
-    // Anulujemy ewentualny wcześniejszy timer przetrwania
+    // Anulujemy ewentualny wcześniejszy timer/animację trybu survival
     _cancelSurvivalTimer();
 
     List<String> categoryKeys = categories.keys.toList();
@@ -785,7 +786,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     options.shuffle();
     correctIndex = options.indexOf(selectedNonMatching);
 
-    // Jeśli gramy w trybie przetrwania i przekroczono próg punktowy, uruchamiamy timer
+    // Jeśli gramy w trybie przetrwania i przekroczono próg punktowy, uruchamiamy animowaną "survival" timer
     int currentTimeLimit = getCurrentSurvivalTimeLimit();
     if (widget.isSurvival && currentTimeLimit > 0) {
       _startSurvivalTimer(currentTimeLimit);
@@ -793,23 +794,45 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   }
 
   void _startSurvivalTimer(int timeLimit) {
+    // Anulujemy ewentualną poprzednią animację/timer
     _cancelSurvivalTimer();
+
     setState(() {
       _survivalTimeLeft = timeLimit;
     });
-    _survivalTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      if (_survivalTimeLeft > 0) {
-        setState(() {
-          _survivalTimeLeft--;
-        });
-      } else {
+
+    // Inicjalizujemy AnimationController dla trybu survival
+    _survivalProgressController = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: timeLimit),
+    );
+
+    // Tween od 1.0 (pełny pasek) do 0.0 (czas minął)
+    _survivalProgressAnimation =
+        Tween<double>(begin: 1.0, end: 0.0).animate(_survivalProgressController!)
+          ..addListener(() {
+            setState(() {
+              _survivalTimeLeft =
+                  (timeLimit * _survivalProgressAnimation.value).ceil();
+            });
+          });
+
+    _survivalProgressController!.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
         _cancelSurvivalTimer();
         _endGame(reason: 'time');
       }
     });
+
+    _survivalProgressController!.forward();
   }
 
   void _cancelSurvivalTimer() {
+    if (_survivalProgressController != null) {
+      _survivalProgressController!.stop();
+      _survivalProgressController!.dispose();
+      _survivalProgressController = null;
+    }
     if (_survivalTimer != null) {
       _survivalTimer!.cancel();
       _survivalTimer = null;
@@ -862,17 +885,14 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
             _generateNewQuestion();
           }
         } else if (widget.timeLimit != null) {
-          // Tryb czasowy – kończymy grę po błędnej odpowiedzi
           _endGameWrongAnswer();
         } else {
-          // Tryb nieskończony – przy błędzie po prostu generujemy nowe pytanie
           _generateNewQuestion();
         }
       } else {
         _generateNewQuestion();
       }
     });
-
   }
 
   void _endGameWrongAnswer() {
@@ -905,7 +925,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     );
   }
 
-  // Dodajemy parametr reason, by rozróżnić komunikaty końcowe
   void _endGame({String reason = 'lives'}) {
     _saveRecord();
     _cancelSurvivalTimer();
@@ -936,61 +955,58 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   }
 
   @override
-void initState() {
-  super.initState();
-  _generateNewQuestion();
+  void initState() {
+    super.initState();
+    _generateNewQuestion();
 
-  if (widget.timeLimit != null) {
-    _timeLeft = widget.timeLimit;
+    if (widget.timeLimit != null) {
+      _timeLeft = widget.timeLimit;
+      _progressController = AnimationController(
+        vsync: this,
+        duration: Duration(seconds: widget.timeLimit!),
+      )..forward();
 
-    _progressController = AnimationController(
-      vsync: this,
-      duration: Duration(seconds: widget.timeLimit!),
-    )..forward();
-
-    _progressAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(_progressController!)
-      ..addListener(() {
-        setState(() {
-          _timeLeft = (widget.timeLimit! * _progressAnimation.value).ceil();
+      _progressAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(_progressController!)
+        ..addListener(() {
+          setState(() {
+            _timeLeft = (widget.timeLimit! * _progressAnimation.value).ceil();
+          });
         });
-      });
 
-    _progressController!.addStatusListener((status) {
+      _progressController!.addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _onTimeUp();
+        }
+      });
+    }
+
+    if (!widget.isSurvival) {
+      _lives = -1;
+    }
+
+    _feedbackAnimationController = AnimationController(
+      duration: Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _feedbackScaleAnimation = Tween<double>(begin: 1.0, end: 1.2)
+        .chain(CurveTween(curve: Curves.easeOut))
+        .animate(_feedbackAnimationController);
+    _feedbackAnimationController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        _onTimeUp();
+        _feedbackAnimationController.reverse();
       }
     });
+
+    _shakeController = AnimationController(
+      duration: Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: 0, end: -10).chain(CurveTween(curve: Curves.easeInOut)), weight: 1),
+      TweenSequenceItem(tween: Tween<double>(begin: -10, end: 10).chain(CurveTween(curve: Curves.easeInOut)), weight: 2),
+      TweenSequenceItem(tween: Tween<double>(begin: 10, end: 0).chain(CurveTween(curve: Curves.easeInOut)), weight: 1),
+    ]).animate(_shakeController);
   }
-
-  if (!widget.isSurvival) {
-    _lives = -1;
-  }
-
-  // Animacje odpowiedzi
-  _feedbackAnimationController = AnimationController(
-    duration: Duration(milliseconds: 300),
-    vsync: this,
-  );
-  _feedbackScaleAnimation = Tween<double>(begin: 1.0, end: 1.2)
-      .chain(CurveTween(curve: Curves.easeOut))
-      .animate(_feedbackAnimationController);
-  _feedbackAnimationController.addStatusListener((status) {
-    if (status == AnimationStatus.completed) {
-      _feedbackAnimationController.reverse();
-    }
-  });
-
-  _shakeController = AnimationController(
-    duration: Duration(milliseconds: 500),
-    vsync: this,
-  );
-  _shakeAnimation = TweenSequence<double>([
-    TweenSequenceItem(tween: Tween<double>(begin: 0, end: -10).chain(CurveTween(curve: Curves.easeInOut)), weight: 1),
-    TweenSequenceItem(tween: Tween<double>(begin: -10, end: 10).chain(CurveTween(curve: Curves.easeInOut)), weight: 2),
-    TweenSequenceItem(tween: Tween<double>(begin: 10, end: 0).chain(CurveTween(curve: Curves.easeInOut)), weight: 1),
-  ]).animate(_shakeController);
-}
-
 
   void _onTimeUp() {
     _saveRecord();
@@ -1016,12 +1032,10 @@ void initState() {
   @override
   void dispose() {
     _timer?.cancel();
-    _survivalTimer?.cancel();
+    _cancelSurvivalTimer();
     _feedbackAnimationController.dispose();
     _shakeController.dispose();
-    if (_progressController != null) {
-      _progressController!.dispose();
-    }
+    _progressController?.dispose();
     super.dispose();
   }
 
@@ -1097,16 +1111,11 @@ void initState() {
                   if (widget.isSurvival) ...[
                     Text(
                       'Życia: $_lives ❤️',
-                      style: TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 24,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
                     ),
-                    if (_survivalTimer != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          'Pozostały czas: $_survivalTimeLeft s',
-                          style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-                      ),
                   ],
                   SizedBox(height: 20),
                   Text(
@@ -1115,32 +1124,56 @@ void initState() {
                     textAlign: TextAlign.center,
                   ),
                   SizedBox(height: 20),
-                  if (widget.timeLimit != null) ...[
-                    Text(
-                      'Pozostały czas: $_timeLeft s',
-                      style: TextStyle(
-                          fontSize: 24,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    // Dodany pasek postępu
+                  // Pasek animowany zależnie od trybu
+                  if (widget.isSurvival && _survivalProgressController != null) ...[
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 40.0, vertical: 10),
-                      child: AnimatedBuilder(
-                        animation: _progressAnimation,
-                        builder: (context, child) {
-                          return AnimatedBuilder(
-                            animation: _progressAnimation,
-                            builder: (context, child) {
-                              return LinearProgressIndicator(
-                                value: _progressAnimation.value,
-                                backgroundColor: Colors.white38,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.greenAccent),
-                              );
-                            },
-                          );
-                        },
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Pozostały czas: $_survivalTimeLeft s',
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 10),
+                      child: Builder(builder: (context) {
+                        int currentLimit = getCurrentSurvivalTimeLimit();
+                        double progressValue = currentLimit > 0 ? _survivalTimeLeft / currentLimit : 0;
+                        Color progressColor;
+                        if (_survivalTimeLeft <= 5) {
+                          progressColor = Colors.red;
+                        } else if (_survivalTimeLeft <= 10) {
+                          progressColor = Colors.yellow;
+                        } else {
+                          progressColor = Colors.greenAccent;
+                        }
+                        return LinearProgressIndicator(
+                          value: progressValue,
+                          backgroundColor: Colors.white38,
+                          valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                        );
+                      }),
+                    ),
+                  ] else if (widget.timeLimit != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Pozostały czas: $_timeLeft s',
+                        style: TextStyle(
+                            fontSize: 20,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 10),
+                      child: LinearProgressIndicator(
+                        value: _progressAnimation.value,
+                        backgroundColor: Colors.white38,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.greenAccent),
                       ),
                     ),
                   ],
