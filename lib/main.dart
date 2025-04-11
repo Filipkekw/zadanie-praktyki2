@@ -449,7 +449,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
 
   // Mapowanie progu punktowego na limit czasu (w sekundach)
   final Map<int, int> survivalThresholds = {
-    2: 20,  // przy 2 punktach -> 20 sekund
+    25: 20,  // przy 2 punktach -> 20 sekund
     50: 15,  // przy 50 punktach -> 15 sekund
     75: 10,  // przy 75 punktach -> 10 sekund
     100: 5,  // przy 100 punktach -> 5 sekund
@@ -967,11 +967,11 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
       )..forward();
 
       _progressAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(_progressController!)
-        ..addListener(() {
-          setState(() {
+            ..addListener(() {
+              setState(() {
             _timeLeft = (widget.timeLimit! * _progressAnimation.value).ceil();
-          });
-        });
+              });
+            });
 
       _progressController!.addStatusListener((status) {
         if (status == AnimationStatus.completed) {
@@ -1355,9 +1355,9 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
                         _countdown > 0 ? '$_countdown' : 'Start!',
                         key: ValueKey<int>(_countdown),
                         style: TextStyle(
-                          fontSize: 64,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white),
+                            fontSize: 64,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
                       ),
                     ),
                   ],
