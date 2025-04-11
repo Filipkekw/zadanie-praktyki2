@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/transitions.dart';
-import 'game_page.dart';
 import 'records_page.dart';
-import 'time_selection_screen.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});

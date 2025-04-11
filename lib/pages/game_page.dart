@@ -3,8 +3,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../utils/transitions.dart';
 import '../widgets/option_button.dart';
-import '../widgets/records_section.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../models/records_repository.dart';
 
 class GamePage extends StatefulWidget {
