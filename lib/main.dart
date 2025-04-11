@@ -442,7 +442,6 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   int _lives = 3;
 
   // Zmienne dla trybu survival
-  int _survivalTimeLeft = 0;
   Timer? _survivalTimer; // Pozostawiamy dla bezpieczeństwa – ale teraz głównie używamy kontrolera animacji
   AnimationController? _survivalProgressController;
   late Animation<double> _survivalProgressAnimation;
@@ -793,13 +792,9 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     }
   }
 
+  // Metoda startująca timer dla trybu survival
   void _startSurvivalTimer(int timeLimit) {
-    // Anulujemy ewentualną poprzednią animację/timer
     _cancelSurvivalTimer();
-
-    setState(() {
-      _survivalTimeLeft = timeLimit;
-    });
 
     // Inicjalizujemy AnimationController dla trybu survival
     _survivalProgressController = AnimationController(
@@ -811,10 +806,9 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     _survivalProgressAnimation =
         Tween<double>(begin: 1.0, end: 0.0).animate(_survivalProgressController!)
           ..addListener(() {
-            setState(() {
-              _survivalTimeLeft =
-                  (timeLimit * _survivalProgressAnimation.value).ceil();
-            });
+            // W tym miejscu możemy odświeżać UI, ale nie musimy aktualizować zmiennej _survivalTimeLeft,
+            // bo wartości wyświetlimy na podstawie animacji.
+            setState(() {});
           });
 
     _survivalProgressController!.addStatusListener((status) {
@@ -826,6 +820,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
 
     _survivalProgressController!.forward();
   }
+
 
   void _cancelSurvivalTimer() {
     if (_survivalProgressController != null) {
@@ -1126,10 +1121,11 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
                   SizedBox(height: 20),
                   // Pasek animowany zależnie od trybu
                   if (widget.isSurvival && _survivalProgressController != null) ...[
+                    // Wyświetlanie pozostałego czasu – obliczanego na podstawie wartości animacji
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
-                        'Pozostały czas: $_survivalTimeLeft s',
+                        'Pozostały czas: ${(_survivalProgressAnimation.value * getCurrentSurvivalTimeLimit()).ceil()} s',
                         style: TextStyle(
                           fontSize: 20,
                           color: Colors.white,
@@ -1137,27 +1133,32 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
                         ),
                       ),
                     ),
+                    // Pasek postępu bazujący na animacji, z dynamicznie zmieniającym się kolorem
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 10),
                       child: Builder(builder: (context) {
-                        int currentLimit = getCurrentSurvivalTimeLimit();
-                        double progressValue = currentLimit > 0 ? _survivalTimeLeft / currentLimit : 0;
+                        int currentTimeLimit = getCurrentSurvivalTimeLimit();
+                        // Obliczenie pozostałego czasu przy użyciu wartości animacji
+                        int remainingSeconds = (_survivalProgressAnimation.value * currentTimeLimit).ceil();
+
                         Color progressColor;
-                        if (_survivalTimeLeft <= 5) {
+                        if (remainingSeconds <= 5) {
                           progressColor = Colors.red;
-                        } else if (_survivalTimeLeft <= 10) {
+                        } else if (remainingSeconds <= 10) {
                           progressColor = Colors.yellow;
                         } else {
                           progressColor = Colors.greenAccent;
                         }
                         return LinearProgressIndicator(
-                          value: progressValue,
+                          // Używamy bezpośrednio wartości animacji dla płynnego efektu
+                          value: _survivalProgressAnimation.value,
                           backgroundColor: Colors.white38,
                           valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                         );
                       }),
                     ),
-                  ] else if (widget.timeLimit != null) ...[
+                  ] 
+                  else if (widget.timeLimit != null) ...[
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
